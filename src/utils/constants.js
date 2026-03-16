@@ -17,6 +17,16 @@ export const TIPOS_DOCUMENTO = {
   otro: 'Otro',
 }
 
+export const CATEGORIAS_GASTO = {
+  medicamentos: { label: 'Medicamentos', color: 'red' },
+  alimentacion: { label: 'Alimentación', color: 'orange' },
+  personal: { label: 'Personal / Sueldos', color: 'blue' },
+  mantenimiento: { label: 'Mantenimiento', color: 'yellow' },
+  servicios: { label: 'Servicios (luz/agua/gas)', color: 'cyan' },
+  equipamiento: { label: 'Equipamiento médico', color: 'purple' },
+  otro: { label: 'Otro', color: 'gray' },
+}
+
 export const COLOR_TIPO_DOCUMENTO = {
   dni: 'blue',
   historia_clinica: 'green',
