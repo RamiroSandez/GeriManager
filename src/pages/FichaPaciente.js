@@ -78,7 +78,9 @@ export default function FichaPaciente() {
         nombre_geriatrico: form.nombre_geriatrico,
         telefono_contacto: form.telefono_contacto,
         nombre_contacto: form.nombre_contacto,
-        notas: form.notas,
+        motivo_ingreso: form.motivo_ingreso,
+        antecedentes: form.antecedentes,
+        medicacion: form.medicacion,
       })
       .eq("id", id)
     setGuardando(false)
@@ -153,6 +155,13 @@ export default function FichaPaciente() {
           : null,
         diagnostico: paciente.diagnostico,
         nombre_geriatrico: paciente.nombre_geriatrico,
+        motivo_ingreso: paciente.motivo_ingreso,
+        antecedentes: paciente.antecedentes
+          ? paciente.antecedentes.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
+          : "",
+        medicacion: paciente.medicacion
+          ? paciente.medicacion.split("\n").filter(m => m.trim() !== "")
+          : [],
         estado_amparo: form.estado_amparo,
       },
       documentos: docsConUrl,
@@ -288,8 +297,20 @@ export default function FichaPaciente() {
                 </FieldRoot>
                 <GridItem colSpan={{ base: 1, md: 2 }}>
                   <FieldRoot>
-                    <FieldLabel fontSize="sm">Notas generales</FieldLabel>
-                    <Textarea value={form.notas || ""} onChange={e => set("notas", e.target.value)} rows={3} placeholder="Notas internas del caso..." />
+                    <FieldLabel fontSize="sm">Motivo de ingreso</FieldLabel>
+                    <Textarea value={form.motivo_ingreso || ""} onChange={e => set("motivo_ingreso", e.target.value)} rows={2} placeholder="Motivo de ingreso al geriátrico..." />
+                  </FieldRoot>
+                </GridItem>
+                <GridItem colSpan={{ base: 1, md: 2 }}>
+                  <FieldRoot>
+                    <FieldLabel fontSize="sm">Antecedentes</FieldLabel>
+                    <Textarea value={form.antecedentes || ""} onChange={e => set("antecedentes", e.target.value)} rows={3} placeholder="Antecedentes médicos relevantes..." />
+                  </FieldRoot>
+                </GridItem>
+                <GridItem colSpan={{ base: 1, md: 2 }}>
+                  <FieldRoot>
+                    <FieldLabel fontSize="sm">Medicación (una por línea)</FieldLabel>
+                    <Textarea value={form.medicacion || ""} onChange={e => set("medicacion", e.target.value)} rows={4} placeholder={"Ej:\nMetformina 500mg - 1 comp c/12hs\nAmlodipina 5mg - 1 comp c/día"} />
                   </FieldRoot>
                 </GridItem>
               </Grid>
