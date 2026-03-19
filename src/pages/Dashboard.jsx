@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import { useAuth } from "../contexts/AuthContext"
 import {
-  Badge,
   Box,
   Button,
   Card,
@@ -17,7 +16,6 @@ import {
 } from "@chakra-ui/react"
 import { Toaster } from "../components/toaster"
 import CrearPacienteModal from "../components/CrearPacienteModal"
-import { ESTADOS_AMPARO } from "../utils/constants"
 
 export default function Dashboard() {
   const { geriatrico } = useAuth()
@@ -50,26 +48,30 @@ export default function Dashboard() {
     <Box px={6} py={6}>
       <Toaster />
 
-      {/* Stats por estado */}
+      {/* Stats */}
       <Grid templateColumns="repeat(auto-fill, minmax(170px, 1fr))" gap={4} mb={6}>
         <Card.Root borderRadius="lg" boxShadow="sm" bg="bg.panel">
           <Card.Body py={4} px={5}>
-            <Text fontSize="3xl" fontWeight="bold" color="blue.600">
-              {pacientes.length}
-            </Text>
+            <Text fontSize="3xl" fontWeight="bold" color="blue.600">{pacientes.length}</Text>
             <Text fontSize="sm" color="text.muted">Total pacientes</Text>
           </Card.Body>
         </Card.Root>
-        {Object.entries(ESTADOS_AMPARO).map(([key, estado]) => (
-          <Card.Root key={key} borderRadius="lg" boxShadow="sm" bg="bg.panel">
-            <Card.Body py={4} px={5}>
-              <Text fontSize="3xl" fontWeight="bold" color={`${estado.color}.600`}>
-                {pacientes.filter(p => (p.estado_amparo || "preparando_documentacion") === key).length}
-              </Text>
-              <Text fontSize="sm" color="text.muted">{estado.label}</Text>
-            </Card.Body>
-          </Card.Root>
-        ))}
+        <Card.Root borderRadius="lg" boxShadow="sm" bg="bg.panel">
+          <Card.Body py={4} px={5}>
+            <Text fontSize="3xl" fontWeight="bold" color="green.600">
+              {pacientes.filter(p => p.Obra_social).length}
+            </Text>
+            <Text fontSize="sm" color="text.muted">Con obra social</Text>
+          </Card.Body>
+        </Card.Root>
+        <Card.Root borderRadius="lg" boxShadow="sm" bg="bg.panel">
+          <Card.Body py={4} px={5}>
+            <Text fontSize="3xl" fontWeight="bold" color="orange.600">
+              {pacientes.filter(p => !p.Obra_social).length}
+            </Text>
+            <Text fontSize="sm" color="text.muted">Sin obra social</Text>
+          </Card.Body>
+        </Card.Root>
       </Grid>
 
       {/* Buscador + botón nuevo */}
@@ -113,14 +115,11 @@ export default function Dashboard() {
                   <Table.ColumnHeader fontWeight="600">DNI</Table.ColumnHeader>
                   <Table.ColumnHeader fontWeight="600">Edad</Table.ColumnHeader>
                   <Table.ColumnHeader fontWeight="600">Obra Social</Table.ColumnHeader>
-                  <Table.ColumnHeader fontWeight="600">Estado Amparo</Table.ColumnHeader>
                   <Table.ColumnHeader></Table.ColumnHeader>
                 </Table.Row>
               </Table.Header>
               <Table.Body>
                 {pacientesFiltrados.map(p => {
-                  const estadoKey = p.estado_amparo || "preparando_documentacion"
-                  const estado = ESTADOS_AMPARO[estadoKey] || ESTADOS_AMPARO.preparando_documentacion
                   const edad = p.fecha_nacimiento
                     ? Math.floor((new Date() - new Date(p.fecha_nacimiento)) / (365.25 * 24 * 60 * 60 * 1000))
                     : null
@@ -134,26 +133,11 @@ export default function Dashboard() {
                       <Table.Cell fontWeight="500">{p.Nombre_Completo}</Table.Cell>
                       <Table.Cell>{p.dni}</Table.Cell>
                       <Table.Cell>{edad !== null ? `${edad} años` : "—"}</Table.Cell>
-                      <Table.Cell>{p.Obra_social}</Table.Cell>
-                      <Table.Cell>
-                        <Badge
-                          colorPalette={estado.color}
-                          variant="subtle"
-                          borderRadius="full"
-                          px={3}
-                        >
-                          {estado.label}
-                        </Badge>
-                      </Table.Cell>
+                      <Table.Cell>{p.Obra_social || "—"}</Table.Cell>
                       <Table.Cell>
                         <Button
-                          size="xs"
-                          variant="ghost"
-                          colorPalette="blue"
-                          onClick={e => {
-                            e.stopPropagation()
-                            navigate(`/paciente/${p.id}`)
-                          }}
+                          size="xs" variant="ghost" colorPalette="blue"
+                          onClick={e => { e.stopPropagation(); navigate(`/paciente/${p.id}`) }}
                         >
                           Ver ficha →
                         </Button>

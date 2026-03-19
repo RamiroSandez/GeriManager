@@ -9,6 +9,7 @@ import Gastos from "./pages/Gastos"
 import Login from "./pages/Login"
 import Registro from "./pages/Registro"
 import Equipo from "./pages/Equipo"
+import Amparos from "./pages/Amparos"
 
 function RolRoute({ roles, children }) {
   const { rol } = useAuth()
@@ -31,6 +32,7 @@ function App() {
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/paciente/:id" element={<FichaPaciente />} />
                     <Route path="/gastos" element={<RolRoute roles={["admin", "gerente"]}><Gastos /></RolRoute>} />
+                    <Route path="/amparos" element={<Amparos />} />
                     <Route path="/equipo" element={<RolRoute roles={["admin"]}><Equipo /></RolRoute>} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>

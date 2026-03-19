@@ -35,7 +35,10 @@ export default function FichaPaciente() {
   const [guardando, setGuardando] = useState(false)
   const [form, setForm] = useState({})
   const [eventos, setEventos] = useState([])
-  const [enviandoWebhook, setEnviandoWebhook] = useState(false)
+  const [amparos, setAmparos] = useState([])
+  const [creandoAmparo, setCreandoAmparo] = useState(false)
+  const [nuevoAmparo, setNuevoAmparo] = useState("")
+  const [generando, setGenerando] = useState(null)
 
   const fetchPaciente = async () => {
     const { data, error } = await supabase
@@ -59,9 +62,19 @@ export default function FichaPaciente() {
     setEventos(data || [])
   }
 
+  const fetchAmparos = async () => {
+    const { data } = await supabase
+      .from("amparos")
+      .select("*")
+      .eq("paciente_id", Number(id))
+      .order("created_at", { ascending: false })
+    setAmparos(data || [])
+  }
+
   useEffect(() => {
     fetchPaciente()
     fetchEventos()
+    fetchAmparos()
   }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }))
@@ -82,7 +95,7 @@ export default function FichaPaciente() {
         motivo_ingreso: form.motivo_ingreso,
         antecedentes: form.antecedentes,
         medicacion: form.medicacion,
-      })
+        })
       .eq("id", id)
     setGuardando(false)
     if (error) {
@@ -93,56 +106,41 @@ export default function FichaPaciente() {
     }
   }
 
-  const cambiarEstado = async (nuevoEstado) => {
-    const estadoAnterior = form.estado_amparo
-    set("estado_amparo", nuevoEstado)
-    const { error } = await supabase
-      .from("Pacientes")
-      .update({ estado_amparo: nuevoEstado })
-      .eq("id", id)
-
-    if (error) {
-      toaster.create({ title: "Error al cambiar estado", type: "error", duration: 4000 })
-      set("estado_amparo", estadoAnterior)
-      return
-    }
-
-    const labelAnterior = ESTADOS_AMPARO[estadoAnterior]?.label || estadoAnterior
-    const labelNuevo = ESTADOS_AMPARO[nuevoEstado]?.label || nuevoEstado
-    await supabase.from("eventos").insert({
+  const crearAmparo = async () => {
+    setCreandoAmparo(true)
+    const { error } = await supabase.from("amparos").insert({
+      geriatrico_id: geriatrico.id,
       paciente_id: Number(id),
-      tipo: "estado_cambiado",
-      descripcion: `Estado cambiado de "${labelAnterior}" a "${labelNuevo}"`,
+      estado: "preparando_documentacion",
+      observaciones: nuevoAmparo || null,
     })
-
-    toaster.create({ title: "Estado actualizado", type: "success", duration: 2000 })
-    fetchEventos()
+    setCreandoAmparo(false)
+    if (error) {
+      toaster.create({ title: "Error al crear amparo", description: error.message, type: "error", duration: 5000 })
+    } else {
+      toaster.create({ title: "Amparo creado", type: "success", duration: 2000 })
+      setNuevoAmparo("")
+      fetchAmparos()
+    }
   }
 
-  const generarAmparo = async () => {
+  const cambiarEstadoAmparo = async (amparoId, nuevoEstado) => {
+    await supabase.from("amparos").update({ estado: nuevoEstado, updated_at: new Date().toISOString() }).eq("id", amparoId)
+    setAmparos(prev => prev.map(a => a.id === amparoId ? { ...a, estado: nuevoEstado } : a))
+  }
+
+  const generarAmparo = async (amparo) => {
     const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL
     if (!webhookUrl) {
-      toaster.create({
-        title: "Webhook no configurado",
-        description: "Agregá VITE_N8N_WEBHOOK_URL en el archivo .env",
-        type: "warning",
-        duration: 5000,
-      })
+      toaster.create({ title: "Webhook no configurado", type: "warning", duration: 4000 })
       return
     }
-
-    setEnviandoWebhook(true)
-
-    const { data: documentos } = await supabase
-      .from("documentos")
-      .select("*")
-      .eq("paciente_id", id)
-
+    setGenerando(amparo.id)
+    const { data: documentos } = await supabase.from("documentos").select("*").eq("paciente_id", id)
     const docsConUrl = (documentos || []).map(doc => ({
       ...doc,
       url: supabase.storage.from("documentos").getPublicUrl(doc.storage_path).data.publicUrl,
     }))
-
     const payload = {
       paciente: {
         id: paciente.id,
@@ -157,18 +155,12 @@ export default function FichaPaciente() {
         diagnostico: paciente.diagnostico,
         nombre_geriatrico: geriatrico?.nombre,
         motivo_ingreso: paciente.motivo_ingreso,
-        antecedentes: paciente.antecedentes
-          ? paciente.antecedentes.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
-          : "",
-        medicacion: paciente.medicacion
-          ? paciente.medicacion.split("\n").filter(m => m.trim() !== "")
-          : [],
-        estado_amparo: form.estado_amparo,
+        antecedentes: paciente.antecedentes?.replace(/\r\n/g, "\n").replace(/\r/g, "\n") || "",
+        medicacion: paciente.medicacion?.split("\n").filter(m => m.trim() !== "") || [],
       },
       documentos: docsConUrl,
       timestamp: new Date().toISOString(),
     }
-
     try {
       const response = await fetch(webhookUrl, {
         method: "POST",
@@ -176,21 +168,20 @@ export default function FichaPaciente() {
         body: JSON.stringify(payload),
       })
       if (!response.ok) throw new Error(`Error HTTP ${response.status}`)
-
-      await cambiarEstado("amparo_generado")
-      await supabase.from("eventos").insert({
-        paciente_id: Number(id),
-        tipo: "amparo_generado",
-        descripcion: "Amparo enviado a n8n para generación automática",
-      })
-
-      toaster.create({ title: "Amparo enviado a n8n", type: "success", duration: 4000 })
-      fetchEventos()
+      let docUrl = null
+      try { const result = await response.json(); docUrl = result?.doc_url || result?.url || null } catch {}
+      await supabase.from("amparos").update({ estado: "amparo_generado", doc_url: docUrl, updated_at: new Date().toISOString() }).eq("id", amparo.id)
+      toaster.create({ title: "Amparo generado", type: "success", duration: 4000 })
+      fetchAmparos()
     } catch (err) {
-      toaster.create({ title: "Error al enviar webhook", description: err.message, type: "error", duration: 5000 })
+      toaster.create({ title: "Error al generar", description: err.message, type: "error", duration: 5000 })
     }
+    setGenerando(null)
+  }
 
-    setEnviandoWebhook(false)
+  const eliminarAmparo = async (amparoId) => {
+    await supabase.from("amparos").delete().eq("id", amparoId)
+    setAmparos(prev => prev.filter(a => a.id !== amparoId))
   }
 
   if (cargando) {
@@ -210,8 +201,8 @@ export default function FichaPaciente() {
     )
   }
 
-  const estadoKey = form.estado_amparo || "preparando_documentacion"
-  const estadoActual = ESTADOS_AMPARO[estadoKey] || ESTADOS_AMPARO.preparando_documentacion
+  const ultimoAmparo = amparos[0]
+  const estadoUltimoAmparo = ultimoAmparo ? (ESTADOS_AMPARO[ultimoAmparo.estado] || ESTADOS_AMPARO.preparando_documentacion) : null
 
   return (
     <Box px={6} py={6}>
@@ -225,16 +216,11 @@ export default function FichaPaciente() {
         <Box flex={1}>
           <HStack gap={3} flexWrap="wrap">
             <Heading size="lg" color="gray.800">{paciente.Nombre_Completo}</Heading>
-            <Badge
-              colorPalette={estadoActual.color}
-              variant="subtle"
-              borderRadius="full"
-              px={3}
-              py={1}
-              fontSize="sm"
-            >
-              {estadoActual.label}
-            </Badge>
+            {estadoUltimoAmparo && (
+              <Badge colorPalette={estadoUltimoAmparo.color} variant="subtle" borderRadius="full" px={3} py={1} fontSize="sm">
+                {estadoUltimoAmparo.label}
+              </Badge>
+            )}
           </HStack>
           <Text color="gray.500" fontSize="sm" mt={1}>
             DNI: {paciente.dni}
@@ -248,7 +234,7 @@ export default function FichaPaciente() {
         <Tabs.List mb={4}>
           <Tabs.Trigger value="datos">Datos del paciente</Tabs.Trigger>
           <Tabs.Trigger value="documentos">Documentos</Tabs.Trigger>
-          <Tabs.Trigger value="amparo">Gestión del amparo</Tabs.Trigger>
+          <Tabs.Trigger value="amparo">Amparos ({amparos.length})</Tabs.Trigger>
           <Tabs.Trigger value="historial">Historial</Tabs.Trigger>
         </Tabs.List>
 
@@ -326,65 +312,86 @@ export default function FichaPaciente() {
           </Card.Root>
         </Tabs.Content>
 
-        {/* Tab: Amparo */}
+        {/* Tab: Amparos */}
         <Tabs.Content value="amparo">
           <Stack gap={4}>
+            {/* Crear nuevo amparo */}
             <Card.Root borderRadius="xl" boxShadow="md">
-              <Card.Header>
-                <Heading size="sm" color="gray.700">Estado del Amparo</Heading>
-              </Card.Header>
               <Card.Body>
-                <Stack gap={5}>
-                  <FieldRoot>
-                    <FieldLabel fontSize="sm">Estado actual</FieldLabel>
-                    <NativeSelect.Root maxW="380px">
-                      <NativeSelect.Field
-                        value={form.estado_amparo || "preparando_documentacion"}
-                        onChange={e => cambiarEstado(e.target.value)}
-                      >
-                        {Object.entries(ESTADOS_AMPARO).map(([k, v]) => (
-                          <option key={k} value={k}>{v.label}</option>
-                        ))}
-                      </NativeSelect.Field>
-                      <NativeSelect.Indicator />
-                    </NativeSelect.Root>
-                  </FieldRoot>
-
-                  <Box p={4} bg="blue.50" borderRadius="lg" border="1px solid" borderColor="blue.100">
-                    <HStack justify="space-between" flexWrap="wrap" gap={4}>
-                      <Box flex={1}>
-                        <Text fontWeight="600" color="blue.700" mb={1}>Generar Amparo con n8n</Text>
-                        <Text fontSize="sm" color="gray.600">
-                          Envía automáticamente los datos del paciente y todos sus documentos
-                          a n8n para generar el amparo. El estado pasará a "Amparo generado".
-                        </Text>
-                      </Box>
-                      <Button
-                        colorPalette="blue"
-                        size="lg"
-                        onClick={generarAmparo}
-                        loading={enviandoWebhook}
-                        flexShrink={0}
-                      >
-                        Generar Amparo
-                      </Button>
-                    </HStack>
-                  </Box>
-
-                  {/* Referencia de estados */}
-                  <Box>
-                    <Text fontSize="sm" fontWeight="600" color="gray.600" mb={2}>Flujo de estados</Text>
-                    <HStack gap={2} flexWrap="wrap">
-                      {Object.entries(ESTADOS_AMPARO).map(([k, v]) => (
-                        <Badge key={k} colorPalette={v.color} variant="subtle" borderRadius="full" px={3} fontSize="xs">
-                          {v.label}
-                        </Badge>
-                      ))}
-                    </HStack>
-                  </Box>
-                </Stack>
+                <HStack gap={3} flexWrap="wrap">
+                  <Input
+                    flex={1} minW="200px" placeholder="Observaciones (opcional)..."
+                    value={nuevoAmparo}
+                    onChange={e => setNuevoAmparo(e.target.value)}
+                    bg="bg.muted"
+                  />
+                  <Button colorPalette="blue" onClick={crearAmparo} loading={creandoAmparo}>
+                    + Nuevo Amparo
+                  </Button>
+                </HStack>
               </Card.Body>
             </Card.Root>
+
+            {/* Lista de amparos */}
+            {amparos.length === 0 ? (
+              <Text color="text.muted" textAlign="center" py={8}>
+                Este paciente no tiene amparos registrados.
+              </Text>
+            ) : (
+              amparos.map(a => {
+                const estado = ESTADOS_AMPARO[a.estado] || ESTADOS_AMPARO.preparando_documentacion
+                return (
+                  <Card.Root key={a.id} borderRadius="xl" boxShadow="sm">
+                    <Card.Body>
+                      <HStack justify="space-between" flexWrap="wrap" gap={4}>
+                        <Box flex={1}>
+                          <HStack gap={2} mb={1}>
+                            <Badge colorPalette={estado.color} variant="subtle" borderRadius="full" px={3}>
+                              {estado.label}
+                            </Badge>
+                            <Text fontSize="xs" color="text.faint">
+                              {new Date(a.created_at).toLocaleDateString("es-AR")}
+                            </Text>
+                          </HStack>
+                          {a.observaciones && (
+                            <Text fontSize="sm" color="text.muted">{a.observaciones}</Text>
+                          )}
+                          {a.doc_url && (
+                            <Button size="xs" variant="ghost" colorPalette="blue" as="a" href={a.doc_url} target="_blank" mt={1}>
+                              Ver documento
+                            </Button>
+                          )}
+                        </Box>
+                        <HStack gap={2} flexWrap="wrap">
+                          <NativeSelect.Root maxW="200px">
+                            <NativeSelect.Field
+                              value={a.estado}
+                              onChange={e => cambiarEstadoAmparo(a.id, e.target.value)}
+                              fontSize="sm"
+                            >
+                              {Object.entries(ESTADOS_AMPARO).map(([k, v]) => (
+                                <option key={k} value={k}>{v.label}</option>
+                              ))}
+                            </NativeSelect.Field>
+                            <NativeSelect.Indicator />
+                          </NativeSelect.Root>
+                          <Button
+                            size="sm" colorPalette="blue" variant="outline"
+                            onClick={() => generarAmparo(a)}
+                            loading={generando === a.id}
+                          >
+                            Generar
+                          </Button>
+                          <Button size="sm" colorPalette="red" variant="ghost" onClick={() => eliminarAmparo(a.id)}>
+                            ✕
+                          </Button>
+                        </HStack>
+                      </HStack>
+                    </Card.Body>
+                  </Card.Root>
+                )
+              })
+            )}
           </Stack>
         </Tabs.Content>
 
