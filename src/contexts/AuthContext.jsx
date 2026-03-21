@@ -106,10 +106,15 @@ export function AuthProvider({ children }) {
     setRol(null)
   }
 
+  const refreshGeriatrico = async () => {
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    if (currentUser) await fetchGeriatrico(currentUser.id)
+  }
+
   const setupPendiente = !cargando && !!user && !geriatrico
 
   return (
-    <AuthContext.Provider value={{ user, geriatrico, rol, cargando, setupPendiente, loginConGoogle, crearGeriatrico, aceptarInvitacion, logout }}>
+    <AuthContext.Provider value={{ user, geriatrico, rol, cargando, setupPendiente, loginConGoogle, crearGeriatrico, aceptarInvitacion, logout, refreshGeriatrico }}>
       {children}
     </AuthContext.Provider>
   )

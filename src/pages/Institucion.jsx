@@ -8,7 +8,7 @@ import {
 import { Toaster, toaster } from "../components/toaster"
 
 export default function Institucion() {
-  const { geriatrico, user } = useAuth()
+  const { geriatrico, user, refreshGeriatrico } = useAuth()
   const [form, setForm] = useState({
     nombre: "",
     nombre_director: "",
@@ -65,6 +65,7 @@ export default function Institucion() {
       toaster.create({ title: "Error al guardar", description: error.message, type: "error", duration: 4000 })
     } else {
       toaster.create({ title: "Datos actualizados", type: "success", duration: 2000 })
+      await refreshGeriatrico()
     }
   }
 
