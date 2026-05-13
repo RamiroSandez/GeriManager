@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react"
 import { supabase } from "../services/supabase"
+import { logError } from "../utils/log"
 
 const AuthContext = createContext({})
 
@@ -84,9 +85,15 @@ export function AuthProvider({ children }) {
       nombre_director: nombreDirector,
       telefono: telefono || null,
     })
-    if (error) return { error }
+    if (error) {
+      logError("crear_geriatrico", error.message, { userId: currentUser.id })
+      return { error }
+    }
 
-    await fetchGeriatrico(currentUser.id)
+    const geriatricoCreado = await fetchGeriatrico(currentUser.id)
+    if (!geriatricoCreado) {
+      logError("crear_geriatrico_fetch", "Geriátrico insertado pero no encontrado al releer", { userId: currentUser.id })
+    }
     return { error: null }
   }
 

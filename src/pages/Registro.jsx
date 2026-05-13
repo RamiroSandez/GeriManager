@@ -23,7 +23,7 @@ export default function Registro() {
       .select("*, geriatricos(nombre)")
       .eq("email", user.email)
       .eq("aceptada", false)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
         setInvitacion(data || null)
         setBuscandoInvitacion(false)
