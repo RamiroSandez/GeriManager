@@ -1,5 +1,6 @@
 ﻿import { useState } from "react"
 import { supabase } from "../services/supabase"
+import { useAuth } from "../contexts/AuthContext"
 import {
   Button,
   DialogBackdrop,
@@ -31,6 +32,7 @@ const FORM_INICIAL = {
 }
 
 export default function CrearPacienteModal({ open, onClose, onCreated, geriatrico_id }) {
+  const { user } = useAuth()
   const [form, setForm] = useState(FORM_INICIAL)
   const [guardando, setGuardando] = useState(false)
 
@@ -52,15 +54,22 @@ export default function CrearPacienteModal({ open, onClose, onCreated, geriatric
       return
     }
     setGuardando(true)
-    const { error } = await supabase.from("Pacientes").insert([{
+    const { data: nuevo, error } = await supabase.from("Pacientes").insert([{
       ...form,
       fecha_nacimiento: form.fecha_nacimiento || null,
       geriatrico_id,
-    }])
-    setGuardando(false)
+    }]).select("id").single()
     if (error) {
+      setGuardando(false)
       toaster.create({ title: "Error al guardar", description: error.message, type: "error", duration: 4000 })
     } else {
+      const nombreUsuario = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "Usuario"
+      await supabase.from("eventos").insert({
+        paciente_id: nuevo.id,
+        descripcion: `Paciente creado — por ${nombreUsuario}`,
+        tipo: "auditoria",
+      })
+      setGuardando(false)
       toaster.create({ title: "Paciente creado", type: "success", duration: 3000 })
       setForm(FORM_INICIAL)
       onCreated?.()
