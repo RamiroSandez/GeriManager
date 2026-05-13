@@ -5,7 +5,8 @@ import { useAuth } from "../contexts/AuthContext"
 import {
   Box, Button, Card, Grid, Heading, HStack, Spinner, Stack, Text,
 } from "@chakra-ui/react"
-import { Toaster } from "../components/toaster"
+import { Toaster, toaster } from "../components/toaster"
+import { cargarDemoData } from "../utils/demoData"
 
 function KpiCard({ valor, label, color, sub, icono, onClick }) {
   return (
@@ -33,10 +34,42 @@ function KpiCard({ valor, label, color, sub, icono, onClick }) {
 const formatPesos = (n) =>
   new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n)
 
+function StepItem({ done, label, onClick }) {
+  return (
+    <HStack
+      gap={3} cursor={onClick && !done ? "pointer" : "default"}
+      onClick={onClick && !done ? onClick : undefined}
+      opacity={done ? 0.6 : 1}
+      _hover={onClick && !done ? { color: "teal.600" } : {}}
+      transition="color 0.15s"
+    >
+      <Box
+        w="20px" h="20px" borderRadius="full" flexShrink={0}
+        bg={done ? "teal.500" : "bg.muted"}
+        border={done ? "none" : "2px solid"}
+        borderColor="border.subtle"
+        display="flex" alignItems="center" justifyContent="center"
+        fontSize="10px" color="white" fontWeight="700"
+      >
+        {done ? "✓" : ""}
+      </Box>
+      <Text fontSize="sm" color={done ? "text.muted" : "text.main"}
+        textDecoration={done ? "line-through" : "none"}>
+        {label}
+      </Text>
+      {onClick && !done && <Text fontSize="xs" color="teal.500">→</Text>}
+    </HStack>
+  )
+}
+
 export default function Panel() {
   const { geriatrico } = useAuth()
   const navigate = useNavigate()
   const [cargando, setCargando] = useState(true)
+  const [cargandoDemo, setCargandoDemo] = useState(false)
+  const [onboardingDismissed, setOnboardingDismissed] = useState(
+    () => localStorage.getItem(`geri-onboarding-${geriatrico?.id}`) === "done"
+  )
   const [kpis, setKpis] = useState({
     totalPacientes: 0, activos: 0, bajas: 0,
     gastosMes: 0, alertasSignos: 0, medPendientes: 0, cumpleHoy: [],
@@ -120,6 +153,23 @@ export default function Panel() {
     setCargando(false)
   }
 
+  const dismissOnboarding = () => {
+    localStorage.setItem(`geri-onboarding-${geriatrico?.id}`, "done")
+    setOnboardingDismissed(true)
+  }
+
+  const handleCargarDemo = async () => {
+    setCargandoDemo(true)
+    const { error } = await cargarDemoData(geriatrico.id)
+    setCargandoDemo(false)
+    if (error) {
+      toaster.create({ title: "Error al cargar demo", description: error.message, type: "error", duration: 4000 })
+    } else {
+      toaster.create({ title: "Datos de demo cargados", description: "8 pacientes, medicamentos y gastos de ejemplo", type: "success", duration: 3000 })
+      fetchData()
+    }
+  }
+
   const hora = new Date().getHours()
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches"
   const mes = new Date().toLocaleString("es-AR", { month: "long", year: "numeric" })
@@ -148,6 +198,52 @@ export default function Panel() {
           {geriatrico?.nombre} · Resumen del día
         </Text>
       </Box>
+
+      {/* Onboarding — visible mientras no tengan pacientes o no lo descarten */}
+      {!cargando && !onboardingDismissed && kpis.totalPacientes === 0 && (
+        <Card.Root
+          borderRadius="xl" boxShadow="md" mb={6}
+          border="1px solid" borderColor="teal.500"
+          bg="bg.panel"
+        >
+          <Card.Body p={6}>
+            <HStack justify="space-between" mb={1}>
+              <Text fontWeight="800" fontSize="md" color="text.main">Primeros pasos 🚀</Text>
+              <Box
+                cursor="pointer" color="text.faint" px={2} py={1} borderRadius="md"
+                _hover={{ bg: "bg.hover", color: "text.muted" }}
+                fontSize="xs"
+                onClick={dismissOnboarding}
+              >
+                No mostrar más
+              </Box>
+            </HStack>
+            <Text fontSize="sm" color="text.muted" mb={5}>
+              Configurá tu geriátrico siguiendo estos pasos
+            </Text>
+
+            <Stack gap={3} mb={6}>
+              <StepItem done label="Crear tu geriátrico" />
+              <StepItem done={kpis.totalPacientes > 0} label="Agregar tu primer paciente" onClick={() => navigate("/pacientes")} />
+              <StepItem done={false} label="Asignar medicación a un paciente" onClick={() => navigate("/medicamentos")} />
+              <StepItem done={kpis.gastosMes > 0} label="Registrar un gasto" onClick={() => navigate("/gastos")} />
+              <StepItem done={false} label="Invitar a tu equipo" onClick={() => navigate("/equipo")} />
+            </Stack>
+
+            <Box borderTop="1px solid" borderColor="border.subtle" pt={4}>
+              <Text fontSize="xs" color="text.muted" mb={3}>
+                ¿Querés ver cómo funciona la app con datos reales de ejemplo?
+              </Text>
+              <Button
+                size="sm" colorPalette="teal" variant="outline"
+                onClick={handleCargarDemo} loading={cargandoDemo}
+              >
+                Cargar datos de demo
+              </Button>
+            </Box>
+          </Card.Body>
+        </Card.Root>
+      )}
 
       {/* KPIs principales */}
       <Grid templateColumns="repeat(auto-fill, minmax(200px, 1fr))" gap={4} mb={6}>
