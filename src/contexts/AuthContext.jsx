@@ -80,20 +80,22 @@ export function AuthProvider({ children }) {
     const { data: { user: currentUser } } = await supabase.auth.getUser()
     if (!currentUser) return { error: new Error("No hay sesión activa") }
 
-    const { error } = await supabase.from("geriatricos").insert({
+    const { data: insertado, error } = await supabase.from("geriatricos").insert({
       user_id: currentUser.id,
       nombre: nombreGeriatrico,
       nombre_director: nombreDirector,
       telefono: telefono || null,
-    })
+    }).select().single()
     if (error) {
       logError("crear_geriatrico", error.message, { userId: currentUser.id })
       return { error }
     }
 
-    const geriatricoCreado = await fetchGeriatrico(currentUser.id)
-    if (!geriatricoCreado) {
-      logError("crear_geriatrico_fetch", "Geriátrico insertado pero no encontrado al releer", { userId: currentUser.id })
+    if (insertado) {
+      setGeriatrico(insertado)
+      setRol("admin")
+    } else {
+      await fetchGeriatrico(currentUser.id)
     }
     return { error: null }
   }
