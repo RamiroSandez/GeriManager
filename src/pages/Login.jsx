@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { Box, Button, Card, FieldLabel, FieldRoot, Heading, Input, Stack, Text } from "@chakra-ui/react"
 import { Toaster, toaster } from "../components/toaster"
 import { useAuth } from "../contexts/AuthContext"
@@ -10,6 +11,7 @@ export default function Login() {
   const [modo, setModo] = useState("login") // "login" | "recuperar"
   const [enviado, setEnviado] = useState(false)
   const { loginConEmail, recuperarPassword, accesoDenegado } = useAuth()
+  const navigate = useNavigate()
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -22,6 +24,8 @@ export default function Login() {
     setCargando(false)
     if (error) {
       toaster.create({ title: "Email o contraseña incorrectos", type: "error", duration: 4000 })
+    } else {
+      navigate("/")
     }
   }
 
