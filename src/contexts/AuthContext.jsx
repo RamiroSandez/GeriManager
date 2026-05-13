@@ -8,8 +8,6 @@ export function AuthProvider({ children }) {
   const [geriatrico, setGeriatrico] = useState(null)
   const [rol, setRol] = useState(null)
   const [cargando, setCargando] = useState(true)
-  const [accesoDenegado] = useState(false)
-
   const fetchGeriatrico = async (userId) => {
     const { data: owned } = await supabase
       .from("geriatricos")
@@ -64,21 +62,8 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loginConGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin },
-    })
-    return { error }
-  }
-
   const loginConEmail = async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error }
-  }
-
-  const registrarConEmail = async (email, password) => {
-    const { error } = await supabase.auth.signUp({ email, password })
     return { error }
   }
 
@@ -138,7 +123,7 @@ export function AuthProvider({ children }) {
   const setupPendiente = !cargando && !!user && !geriatrico
 
   return (
-    <AuthContext.Provider value={{ user, geriatrico, rol, cargando, setupPendiente, accesoDenegado, loginConGoogle, loginConEmail, registrarConEmail, recuperarPassword, crearGeriatrico, aceptarInvitacion, logout, refreshGeriatrico }}>
+    <AuthContext.Provider value={{ user, geriatrico, rol, cargando, setupPendiente, loginConEmail, recuperarPassword, crearGeriatrico, aceptarInvitacion, logout, refreshGeriatrico }}>
       {children}
     </AuthContext.Provider>
   )

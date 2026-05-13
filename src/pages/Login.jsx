@@ -10,7 +10,7 @@ export default function Login() {
   const [cargando, setCargando] = useState(false)
   const [modo, setModo] = useState("login") // "login" | "recuperar"
   const [enviado, setEnviado] = useState(false)
-  const { loginConEmail, recuperarPassword, accesoDenegado } = useAuth()
+  const { loginConEmail, recuperarPassword } = useAuth()
   const navigate = useNavigate()
 
   const handleLogin = async (e) => {
@@ -64,11 +64,6 @@ export default function Login() {
             {modo === "login" && (
               <form onSubmit={handleLogin}>
                 <Stack gap={4}>
-                  {accesoDenegado && (
-                    <Text fontSize="sm" color="red.500" textAlign="center" fontWeight="500">
-                      Tu cuenta no tiene acceso. Contactá al administrador.
-                    </Text>
-                  )}
                   <FieldRoot>
                     <FieldLabel fontSize="sm">Email</FieldLabel>
                     <Input
