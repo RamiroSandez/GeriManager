@@ -13,6 +13,7 @@ import Equipo from "./pages/Equipo"
 import Amparos from "./pages/Amparos"
 import Institucion from "./pages/Institucion"
 import Medicamentos from "./pages/Medicamentos"
+import ResetPassword from "./pages/ResetPassword"
 
 function RolRoute({ roles, children }) {
   const { rol } = useAuth()
@@ -26,6 +27,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Registro />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/*" element={
             <ProtectedRoute>
               <Box minH="100vh" bg="bg.page" display="flex">
