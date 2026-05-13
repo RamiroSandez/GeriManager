@@ -82,6 +82,13 @@ export function AuthProvider({ children }) {
     return { error }
   }
 
+  const recuperarPassword = async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    return { error }
+  }
+
   const crearGeriatrico = async ({ nombreGeriatrico, nombreDirector, telefono }) => {
     const { data: { user: currentUser } } = await supabase.auth.getUser()
     if (!currentUser) return { error: new Error("No hay sesión activa") }
@@ -131,7 +138,7 @@ export function AuthProvider({ children }) {
   const setupPendiente = !cargando && !!user && !geriatrico
 
   return (
-    <AuthContext.Provider value={{ user, geriatrico, rol, cargando, setupPendiente, accesoDenegado, loginConGoogle, loginConEmail, registrarConEmail, crearGeriatrico, aceptarInvitacion, logout, refreshGeriatrico }}>
+    <AuthContext.Provider value={{ user, geriatrico, rol, cargando, setupPendiente, accesoDenegado, loginConGoogle, loginConEmail, registrarConEmail, recuperarPassword, crearGeriatrico, aceptarInvitacion, logout, refreshGeriatrico }}>
       {children}
     </AuthContext.Provider>
   )
