@@ -1,6 +1,7 @@
 ﻿import { useState } from "react"
 import { supabase } from "../services/supabase"
 import { useAuth } from "../contexts/AuthContext"
+import { logError } from "../utils/log"
 import {
   Button,
   DialogBackdrop,
@@ -69,7 +70,7 @@ export default function CrearPacienteModal({ open, onClose, onCreated, geriatric
         descripcion: `Paciente creado — por ${nombreUsuario}`,
         tipo: "auditoria",
       })
-      if (evError) console.error("Error al registrar evento:", evError.message)
+      if (evError) logError("crear_paciente_evento", evError.message, { geriatricoId: geriatrico_id, userId: user?.id })
       setGuardando(false)
       toaster.create({ title: "Paciente creado", type: "success", duration: 3000 })
       setForm(FORM_INICIAL)

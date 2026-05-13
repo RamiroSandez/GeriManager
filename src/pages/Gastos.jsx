@@ -21,6 +21,7 @@ import {
 } from "@chakra-ui/react"
 import { Toaster, toaster } from "../components/toaster"
 import { CATEGORIAS_GASTO } from "../utils/constants"
+import { logError } from "../utils/log"
 
 const formatPesos = (monto) =>
   new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(monto)
@@ -144,6 +145,7 @@ export default function Gastos() {
       : await supabase.from("gastos").insert(datos)
     setGuardando(false)
     if (error) {
+      logError("guardar_gasto", error.message, { geriatricoId: geriatrico?.id })
       toaster.create({ title: "Error al guardar", description: error.message, type: "error", duration: 4000 })
     } else {
       toaster.create({ title: editandoId ? "Gasto actualizado" : "Gasto registrado", type: "success", duration: 2000 })
@@ -157,7 +159,10 @@ export default function Gastos() {
     if (!confirmarEliminar) return
     const { error } = await supabase.from("gastos").delete().eq("id", confirmarEliminar)
     setConfirmarEliminar(null)
-    if (!error) {
+    if (error) {
+      logError("eliminar_gasto", error.message, { geriatricoId: geriatrico?.id })
+      toaster.create({ title: "Error al eliminar gasto", description: error.message, type: "error", duration: 4000 })
+    } else {
       toaster.create({ title: "Gasto eliminado", type: "success", duration: 2000 })
       fetchGastos()
       fetchTotalMesAnterior()

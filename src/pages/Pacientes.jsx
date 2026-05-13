@@ -9,6 +9,7 @@ import {
 } from "@chakra-ui/react"
 import { Toaster, toaster } from "../components/toaster"
 import CrearPacienteModal from "../components/CrearPacienteModal"
+import { logError } from "../utils/log"
 
 export default function Pacientes() {
   const { geriatrico } = useAuth()
@@ -36,6 +37,7 @@ export default function Pacientes() {
     setEliminando(false)
     setConfirmDelete(null)
     if (error) {
+      logError("eliminar_paciente", error.message, { geriatricoId: geriatrico?.id })
       toaster.create({ title: "Error al eliminar", description: error.message, type: "error", duration: 4000 })
     } else {
       toaster.create({ title: `${nombre} eliminado`, type: "success", duration: 3000 })

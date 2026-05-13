@@ -33,6 +33,7 @@ import DocumentosPanel from "../components/DocumentosPanel"
 import MedicacionPaciente from "../components/MedicacionPaciente"
 import ControlDiario from "../components/ControlDiario"
 import { useAuth } from "../contexts/AuthContext"
+import { logError } from "../utils/log"
 
 const ESTADOS_PACIENTE = {
   activo: { label: "Activo", color: "green" },
@@ -87,7 +88,7 @@ export default function FichaPaciente() {
     const { error } = await supabase
       .from("eventos")
       .insert({ paciente_id: Number(id), descripcion: `${descripcion} — por ${nombreUsuario}`, tipo: "auditoria" })
-    if (error) console.error("Error registrando evento:", error.message)
+    if (error) logError("registrar_evento", error.message, { geriatricoId: geriatrico?.id, userId: user?.id })
   }
 
   const cambiarEstado = async () => {
@@ -95,6 +96,7 @@ export default function FichaPaciente() {
     setCambiandoEstado(true)
     const { error } = await supabase.from("Pacientes").update({ estado: nuevoEstado }).eq("id", id)
     if (error) {
+      logError("cambiar_estado_paciente", error.message, { geriatricoId: geriatrico?.id, userId: user?.id })
       toaster.create({ title: "Error al cambiar estado", description: error.message, type: "error", duration: 4000 })
     } else {
       await registrarEvento(`Estado cambiado a: ${ESTADOS_PACIENTE[nuevoEstado].label}`)
@@ -118,6 +120,7 @@ export default function FichaPaciente() {
     const { error } = await supabase.from("Pacientes").delete().eq("id", id)
     setEliminando(false)
     if (error) {
+      logError("eliminar_paciente", error.message, { geriatricoId: geriatrico?.id, userId: user?.id })
       toaster.create({ title: "Error al eliminar", description: error.message, type: "error", duration: 4000 })
     } else {
       toaster.create({ title: "Paciente eliminado", type: "success", duration: 3000 })
@@ -162,6 +165,7 @@ export default function FichaPaciente() {
     const { error } = await supabase.from("Pacientes").update(updatePayload).eq("id", id)
 
     if (error) {
+      logError("guardar_datos_paciente", error.message, { geriatricoId: geriatrico?.id, userId: user?.id })
       toaster.create({ title: "Error al guardar", description: error.message, type: "error", duration: 4000 })
     } else {
       const descripcion = estadoCambio
