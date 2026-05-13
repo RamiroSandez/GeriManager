@@ -10,12 +10,13 @@ export function AuthProvider({ children }) {
   const [rol, setRol] = useState(null)
   const [cargando, setCargando] = useState(true)
   const fetchGeriatrico = async (userId) => {
-    const { data: owned } = await supabase
+    const { data: ownedList } = await supabase
       .from("geriatricos")
       .select("*")
       .eq("user_id", userId)
-      .maybeSingle()
+      .limit(1)
 
+    const owned = ownedList?.[0] || null
     if (owned) { setGeriatrico(owned); setRol("admin"); return owned }
 
     const { data: membership } = await supabase
