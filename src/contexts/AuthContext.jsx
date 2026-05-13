@@ -10,6 +10,10 @@ export function AuthProvider({ children }) {
   const [rol, setRol] = useState(null)
   const [cargando, setCargando] = useState(true)
   const fetchGeriatrico = async (userId) => {
+    // Esperar sesión activa antes de consultar (evita SELECT sin token)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { setGeriatrico(null); setRol(null); return null }
+
     const { data: ownedList } = await supabase
       .from("geriatricos")
       .select("*")
@@ -54,7 +58,10 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) {
-        fetchGeriatrico(session.user.id).catch(() => {})
+        setCargando(true)
+        fetchGeriatrico(session.user.id)
+          .catch(() => {})
+          .finally(() => setCargando(false))
       } else {
         setGeriatrico(null)
         setRol(null)
