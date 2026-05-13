@@ -11,8 +11,12 @@ export default function Registro() {
   const [cargando, setCargando] = useState(false)
   const [buscandoInvitacion, setBuscandoInvitacion] = useState(true)
   const [invitacion, setInvitacion] = useState(null)
-  const { crearGeriatrico, aceptarInvitacion, user, logout } = useAuth()
+  const { crearGeriatrico, aceptarInvitacion, user, logout, geriatrico } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (geriatrico) navigate("/")
+  }, [geriatrico, navigate])
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
 
@@ -38,7 +42,6 @@ export default function Registro() {
       toaster.create({ title: "Error al unirse", description: error.message, type: "error", duration: 5000 })
     } else {
       toaster.create({ title: "¡Bienvenido!", description: `Te uniste a ${invitacion.geriatricos.nombre}`, type: "success", duration: 2000 })
-      navigate("/")
     }
   }
 
@@ -55,7 +58,6 @@ export default function Registro() {
       toaster.create({ title: "Error al guardar", description: error.message, type: "error", duration: 5000 })
     } else {
       toaster.create({ title: "¡Geriátrico creado!", description: "Bienvenido a Domus", type: "success", duration: 2000 })
-      navigate("/")
     }
   }
 
