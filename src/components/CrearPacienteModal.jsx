@@ -64,11 +64,12 @@ export default function CrearPacienteModal({ open, onClose, onCreated, geriatric
       toaster.create({ title: "Error al guardar", description: error.message, type: "error", duration: 4000 })
     } else {
       const nombreUsuario = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "Usuario"
-      await supabase.from("eventos").insert({
+      const { error: evError } = await supabase.from("eventos").insert({
         paciente_id: nuevo.id,
         descripcion: `Paciente creado — por ${nombreUsuario}`,
         tipo: "auditoria",
       })
+      if (evError) console.error("Error al registrar evento:", evError.message)
       setGuardando(false)
       toaster.create({ title: "Paciente creado", type: "success", duration: 3000 })
       setForm(FORM_INICIAL)
