@@ -15,7 +15,7 @@ export function AuthProvider({ children }) {
       .from("geriatricos")
       .select("*")
       .eq("user_id", userId)
-      .single()
+      .maybeSingle()
 
     if (owned) { setGeriatrico(owned); setRol("admin"); return owned }
 
@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
       .from("miembros_geriatrico")
       .select("rol, geriatrico_id, geriatricos(*)")
       .eq("user_id", userId)
-      .single()
+      .maybeSingle()
 
     if (membership?.geriatricos) {
       setGeriatrico(membership.geriatricos)
