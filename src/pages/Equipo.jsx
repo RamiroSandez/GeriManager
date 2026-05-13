@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { supabase } from "../services/supabase"
 import { useAuth } from "../contexts/AuthContext"
 import {
@@ -75,7 +75,7 @@ export default function Equipo() {
       <Heading size="lg" color="text.main" mb={6}>Equipo</Heading>
 
       {/* Invite form */}
-      <Card.Root borderRadius="xl" boxShadow="md" mb={6} borderLeft="4px solid" borderColor="blue.400">
+      <Card.Root borderRadius="xl" boxShadow="md" mb={6} borderLeft="4px solid" borderColor="teal.400">
         <Card.Header pb={2}>
           <Heading size="sm" color="text.main">Invitar nuevo miembro</Heading>
         </Card.Header>
@@ -100,7 +100,7 @@ export default function Equipo() {
                 <NativeSelect.Indicator />
               </NativeSelect.Root>
             </FieldRoot>
-            <Button colorPalette="blue" onClick={invitar} loading={guardando}>
+            <Button colorPalette="teal" onClick={invitar} loading={guardando}>
               Invitar
             </Button>
           </Grid>
@@ -111,7 +111,7 @@ export default function Equipo() {
       </Card.Root>
 
       {cargando ? (
-        <Box display="flex" justifyContent="center" py={10}><Spinner size="lg" color="blue.500" /></Box>
+        <Box display="flex" justifyContent="center" py={10}><Spinner size="lg" color="teal.500" /></Box>
       ) : (
         <Stack gap={6}>
           {/* Members table */}

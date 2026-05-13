@@ -27,3 +27,7 @@ yarn-error.log*
 # Supabase
 supabase/.branches
 supabase/.temp
+
+# Windows
+desktop.ini
+Thumbs.db

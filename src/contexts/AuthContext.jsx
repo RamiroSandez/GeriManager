@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
   const [geriatrico, setGeriatrico] = useState(null)
   const [rol, setRol] = useState(null)
   const [cargando, setCargando] = useState(true)
-  const [accesoDenegado, setAccesoDenegado] = useState(false)
+  const [accesoDenegado] = useState(false)
 
   const fetchGeriatrico = async (userId) => {
     const { data: owned } = await supabase
@@ -36,21 +36,6 @@ export function AuthProvider({ children }) {
     return null
   }
 
-  // Chequeo de whitelist — se ejecuta cuando el user cambia, sin bloquear la carga
-  useEffect(() => {
-    if (!user) return
-    supabase.from("whitelist").select("email").eq("email", user.email).single()
-      .then(({ data }) => {
-        if (!data) {
-          supabase.auth.signOut()
-          setAccesoDenegado(true)
-          setUser(null)
-          setGeriatrico(null)
-          setRol(null)
-        }
-      })
-      .catch(() => {}) // si falla el chequeo, no bloquear
-  }, [user])
 
   useEffect(() => {
     supabase.auth.getSession()

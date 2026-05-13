@@ -8,11 +8,11 @@ const config = defineConfig({
   theme: {
     semanticTokens: {
       colors: {
-        "bg.page":       { value: { base: "#F8F9FB",  _dark: "#0F1117" } },
-        "bg.panel":      { value: { base: "white",    _dark: "#1A1D27" } },
-        "bg.muted":      { value: { base: "{colors.gray.50}",  _dark: "#13151F" } },
-        "bg.hover":      { value: { base: "{colors.gray.50}",  _dark: "#22263A" } },
-        "border.subtle": { value: { base: "{colors.gray.100}", _dark: "#2A2E42" } },
+        "bg.page":       { value: { base: "#F0FDFA",  _dark: "#0A1512" } },
+        "bg.panel":      { value: { base: "white",    _dark: "#0F1F1C" } },
+        "bg.muted":      { value: { base: "{colors.gray.50}",  _dark: "#0D1917" } },
+        "bg.hover":      { value: { base: "{colors.teal.50}",  _dark: "#162820" } },
+        "border.subtle": { value: { base: "{colors.gray.100}", _dark: "#1E3530" } },
         "text.main":     { value: { base: "{colors.gray.900}", _dark: "{colors.gray.50}"  } },
         "text.muted":    { value: { base: "{colors.gray.500}", _dark: "{colors.gray.400}" } },
         "text.faint":    { value: { base: "{colors.gray.400}", _dark: "{colors.gray.600}" } },

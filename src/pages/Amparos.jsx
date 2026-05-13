@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { supabase } from "../services/supabase"
 import { useAuth } from "../contexts/AuthContext"
 import {
@@ -7,6 +7,7 @@ import {
 } from "@chakra-ui/react"
 import { Toaster, toaster } from "../components/toaster"
 import { TIPOS_AMPARO, validarCamposAmparo } from "../utils/constants"
+import { generarAmparo } from "../utils/generarAmparo"
 
 const PDF_OPTS = {
   margin: 15,
@@ -64,39 +65,6 @@ const formatMonto = (input) => {
   return "$" + n.toLocaleString("es-AR")
 }
 
-const buildPacientePayload = (paciente) => ({
-  nombre: paciente.Nombre_Completo,
-  dni: paciente.dni,
-  obra_social: paciente.Obra_social,
-  numero_afiliado: paciente.numero_afiliado || "",
-  fecha_nacimiento: paciente.fecha_nacimiento,
-  diagnostico: paciente.diagnostico,
-  motivo_ingreso: paciente.motivo_ingreso,
-  antecedentes: paciente.antecedentes || "",
-  medicacion: typeof paciente.medicacion === "string"
-    ? paciente.medicacion.split("\n").filter(m => m.trim())
-    : [],
-})
-
-const llamarEdgeFunction = async (session, paciente, tipo, geriatrico = {}, extras = {}) => {
-  const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generar-amparo`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${session.access_token}`,
-      "apikey": import.meta.env.VITE_SUPABASE_KEY,
-    },
-    body: JSON.stringify({
-      paciente: buildPacientePayload(paciente),
-      tipo,
-      geriatrico: { nombre: geriatrico.nombre || "", nombre_director: geriatrico.nombre_director || "" },
-      extras,
-    }),
-  })
-  const result = await response.json()
-  if (!response.ok) throw new Error(result.error || `Error ${response.status}`)
-  return result.html
-}
 
 const ITEMS_DEFAULT = [
   { mes: "Marzo/2026", monto: "3.700.000" },
@@ -182,13 +150,12 @@ export default function Amparos() {
     }
     setPrevisualizando(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
       const extras = tipoSeleccionado === "presupuesto"
         ? { item_presupuesto: itemsPresupuesto.filter(i => i.mes && i.monto).map(i => `${i.mes.replace(/\//g, "-")}: $${i.monto}`).join("<br>") }
         : tipoSeleccionado === "informe_deuda"
         ? { monto_letras: numeroALetras(informeDeuda.monto), monto_numerico: formatMonto(informeDeuda.monto), periodo: formatearPeriodo(informeDeuda.periodo) }
         : {}
-      const html = await llamarEdgeFunction(session, paciente, tipoSeleccionado, geriatrico, extras)
+      const html = generarAmparo(tipoSeleccionado, paciente, geriatrico, extras)
       setHtmlPreview(html)
     } catch (err) {
       toaster.create({ title: "Error al previsualizar", description: err.message, type: "error", duration: 5000 })
@@ -241,11 +208,10 @@ export default function Amparos() {
     }
     setDescargandoZip(amparo.id)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
       let extras = {}
       if (tipo === "presupuesto" && amparo.observaciones) extras = { item_presupuesto: amparo.observaciones }
       else if (tipo === "informe_deuda" && amparo.observaciones) { try { const r = JSON.parse(amparo.observaciones); extras = { monto_letras: numeroALetras(r.monto), monto_numerico: formatMonto(r.monto), periodo: formatearPeriodo(r.periodo) } } catch {} }
-      const html = await llamarEdgeFunction(session, paciente, tipo, geriatrico, extras)
+      const html = generarAmparo(tipo, paciente, geriatrico, extras)
       const html2pdf = (await import("html2pdf.js")).default
       const container = document.createElement("div")
       container.innerHTML = html
@@ -262,7 +228,6 @@ export default function Amparos() {
   const descargarZipPaciente = async (lista, nombre, key) => {
     setDescargandoZip(key)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
       const html2pdf = (await import("html2pdf.js")).default
       const JSZip = (await import("jszip")).default
       const zip = new JSZip()
@@ -274,7 +239,7 @@ export default function Amparos() {
         if (tipo === "presupuesto" && amparo.observaciones) extras = { item_presupuesto: amparo.observaciones }
         else if (tipo === "informe_deuda" && amparo.observaciones) { try { const r = JSON.parse(amparo.observaciones); extras = { monto_letras: numeroALetras(r.monto), monto_numerico: formatMonto(r.monto), periodo: formatearPeriodo(r.periodo) } } catch {} }
         try {
-          const html = await llamarEdgeFunction(session, paciente, tipo, geriatrico, extras)
+          const html = generarAmparo(tipo, paciente, geriatrico, extras)
           const container = document.createElement("div")
           container.innerHTML = html
           const pdf = await html2pdf().set(PDF_OPTS).from(container).toPdf().get("pdf")
@@ -332,7 +297,7 @@ export default function Amparos() {
 
       {/* Panel generar */}
       {!htmlPreview && (
-        <Card.Root borderRadius="xl" boxShadow="md" mb={6} border="1px solid" borderColor="blue.200">
+        <Card.Root borderRadius="xl" boxShadow="md" mb={6} border="1px solid" borderColor="teal.200">
           <Card.Body>
             <Text fontWeight="600" color="text.main" mb={4}>Nuevo documento</Text>
             <Stack gap={4}>
@@ -429,7 +394,7 @@ export default function Amparos() {
                       </HStack>
                     ))}
                     <Button
-                      size="sm" variant="ghost" colorPalette="blue" alignSelf="flex-start"
+                      size="sm" variant="ghost" colorPalette="teal" alignSelf="flex-start"
                       onClick={() => setItemsPresupuesto(prev => [...prev, { mes: "", monto: "", id: crypto.randomUUID() }])}
                     >
                       + Agregar ítem
@@ -439,7 +404,7 @@ export default function Amparos() {
               )}
 
               <Box>
-                <Button colorPalette="blue" onClick={previsualizar} loading={previsualizando}>
+                <Button colorPalette="teal" onClick={previsualizar} loading={previsualizando}>
                   Previsualizar
                 </Button>
               </Box>
@@ -458,19 +423,34 @@ export default function Amparos() {
                 <Button size="sm" variant="outline" onClick={() => setHtmlPreview("")}>
                   Cancelar
                 </Button>
-                <Button size="sm" colorPalette="blue" onClick={guardarDocumento} loading={guardandoDoc}>
+                <Button size="sm" colorPalette="teal" onClick={guardarDocumento} loading={guardandoDoc}>
                   Guardar documento
                 </Button>
               </HStack>
             </HStack>
           </Card.Header>
           <Card.Body p={0}>
-            <Box borderTop="1px solid" borderColor="border.muted">
-              <iframe
-                srcDoc={htmlPreview}
-                style={{ width: "100%", height: "700px", border: "none", display: "block" }}
-                title="Vista previa del documento"
-              />
+            <Box
+              bg="gray.200"
+              px={{ base: 2, md: 8 }}
+              py={6}
+              borderTop="1px solid"
+              borderColor="border.subtle"
+              style={{ backgroundColor: "#d1d5db" }}
+            >
+              <Box
+                maxW="860px"
+                mx="auto"
+                boxShadow="0 4px 24px rgba(0,0,0,0.18)"
+                borderRadius="sm"
+                overflow="hidden"
+              >
+                <iframe
+                  srcDoc={htmlPreview}
+                  style={{ width: "100%", height: "720px", border: "none", display: "block", background: "white" }}
+                  title="Vista previa del documento"
+                />
+              </Box>
             </Box>
           </Card.Body>
         </Card.Root>
@@ -478,7 +458,7 @@ export default function Amparos() {
 
       {/* Carpetas por paciente */}
       {cargando ? (
-        <Box display="flex" justifyContent="center" py={10}><Spinner size="lg" color="blue.500" /></Box>
+        <Box display="flex" justifyContent="center" py={10}><Spinner size="lg" color="teal.500" /></Box>
       ) : Object.keys(amparosPorPaciente).length === 0 ? (
         <Text color="text.muted" textAlign="center" py={10}>No hay documentos generados aún.</Text>
       ) : (
@@ -491,7 +471,7 @@ export default function Amparos() {
                     <Text fontWeight="700" fontSize="md" color="text.main">{nombre}</Text>
                     <Text fontSize="xs" color="text.muted">{lista.length} documento{lista.length !== 1 ? "s" : ""}</Text>
                   </Box>
-                  <Button size="sm" colorPalette="blue" variant="outline" onClick={() => descargarZipPaciente(lista, nombre, pid)} loading={descargandoZip === pid}>
+                  <Button size="sm" colorPalette="teal" variant="outline" onClick={() => descargarZipPaciente(lista, nombre, pid)} loading={descargandoZip === pid}>
                     Descargar carpeta
                   </Button>
                 </HStack>
@@ -502,7 +482,7 @@ export default function Amparos() {
                     <HStack key={a.id} justify="space-between" py={2} px={3} borderRadius="md" _hover={{ bg: "bg.hover" }}>
                       <Text fontSize="xs" color="text.muted" minW="70px">{new Date(a.created_at).toLocaleDateString("es-AR")}</Text>
                       <HStack gap={1}>
-                        <Button size="xs" colorPalette="blue" variant="ghost" onClick={() => descargarPDFDirecto(a)} loading={descargandoZip === a.id}>
+                        <Button size="xs" colorPalette="teal" variant="ghost" onClick={() => descargarPDFDirecto(a)} loading={descargandoZip === a.id}>
                           {tipoLabel(a.tipo)}
                         </Button>
                         <Button size="xs" colorPalette="red" variant="ghost" onClick={() => eliminarAmparo(a.id)} loading={eliminando === a.id}>

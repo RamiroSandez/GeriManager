@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { supabase } from "../services/supabase"
 import { useAuth } from "../contexts/AuthContext"
 import {
@@ -66,7 +66,7 @@ export default function Medicamentos() {
 
   if (cargando) return (
     <Box display="flex" justifyContent="center" alignItems="center" py={20}>
-      <Spinner size="xl" color="blue.500" />
+      <Spinner size="xl" color="teal.500" />
     </Box>
   )
 
@@ -80,7 +80,7 @@ export default function Medicamentos() {
           <Text fontSize="sm" color="text.muted">Catálogo de medicamentos del geriátrico</Text>
         </Box>
         <Button
-          colorPalette="blue"
+          colorPalette="teal"
           size="sm"
           onClick={() => { setMostrarForm(!mostrarForm); setForm(FORM_INICIAL) }}
         >
@@ -120,7 +120,7 @@ export default function Medicamentos() {
                 />
               </FieldRoot>
             </Grid>
-            <Button mt={4} colorPalette="blue" size="sm" onClick={guardar} loading={guardando}>
+            <Button mt={4} colorPalette="teal" size="sm" onClick={guardar} loading={guardando}>
               Guardar
             </Button>
           </Card.Body>

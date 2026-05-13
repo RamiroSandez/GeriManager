@@ -1,4 +1,4 @@
-import { useState } from "react"
+﻿import { useState } from "react"
 import { supabase } from "../services/supabase"
 import {
   Button,
@@ -36,9 +36,19 @@ export default function CrearPacienteModal({ open, onClose, onCreated, geriatric
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }))
 
+  const hoy = new Date().toISOString().split("T")[0]
+
   const guardar = async () => {
-    if (!form.Nombre_Completo.trim() || !form.dni.trim()) {
-      toaster.create({ title: "Nombre y DNI son obligatorios", type: "error", duration: 3000 })
+    if (!form.Nombre_Completo.trim()) {
+      toaster.create({ title: "El nombre es obligatorio", type: "error", duration: 3000 })
+      return
+    }
+    if (!form.dni.trim() || !/^\d{7,8}$/.test(form.dni.trim())) {
+      toaster.create({ title: "DNI inválido", description: "Debe tener 7 u 8 dígitos numéricos", type: "error", duration: 3000 })
+      return
+    }
+    if (form.fecha_nacimiento && form.fecha_nacimiento > hoy) {
+      toaster.create({ title: "Fecha de nacimiento inválida", description: "No puede ser una fecha futura", type: "error", duration: 3000 })
       return
     }
     setGuardando(true)
@@ -81,8 +91,10 @@ export default function CrearPacienteModal({ open, onClose, onCreated, geriatric
                 <FieldLabel fontSize="sm">DNI *</FieldLabel>
                 <Input
                   value={form.dni}
-                  onChange={e => set("dni", e.target.value)}
+                  onChange={e => set("dni", e.target.value.replace(/\D/g, "").slice(0, 8))}
                   placeholder="Ej: 30123456"
+                  inputMode="numeric"
+                  maxLength={8}
                 />
               </FieldRoot>
               <FieldRoot>
@@ -107,6 +119,8 @@ export default function CrearPacienteModal({ open, onClose, onCreated, geriatric
                   type="date"
                   value={form.fecha_nacimiento}
                   onChange={e => set("fecha_nacimiento", e.target.value)}
+                  min="1900-01-01"
+                  max={hoy}
                 />
               </FieldRoot>
               <FieldRoot>
@@ -138,7 +152,7 @@ export default function CrearPacienteModal({ open, onClose, onCreated, geriatric
           </DialogBody>
           <DialogFooter gap={2}>
             <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button colorPalette="blue" onClick={guardar} loading={guardando}>
+            <Button colorPalette="teal" onClick={guardar} loading={guardando}>
               Crear Paciente
             </Button>
           </DialogFooter>

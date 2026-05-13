@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Box, Button, Card, FieldLabel, FieldRoot, Grid, Heading, Input, Spinner, Stack, Text, Badge } from "@chakra-ui/react"
 import { Toaster, toaster } from "../components/toaster"
@@ -73,7 +73,7 @@ export default function Registro() {
 
         {buscandoInvitacion ? (
           <Box display="flex" justifyContent="center" py={10}>
-            <Spinner size="lg" color="blue.500" />
+            <Spinner size="lg" color="teal.500" />
           </Box>
         ) : invitacion ? (
           /* Invitation acceptance card */
@@ -88,7 +88,7 @@ export default function Registro() {
                 <Badge colorPalette={ROLES_GERIATRICO[invitacion.rol]?.color} variant="subtle" borderRadius="full" px={4} py={1} fontSize="sm">
                   {ROLES_GERIATRICO[invitacion.rol]?.label}
                 </Badge>
-                <Button colorPalette="blue" size="lg" w="full" onClick={handleAceptar} loading={cargando}>
+                <Button colorPalette="teal" size="lg" w="full" onClick={handleAceptar} loading={cargando}>
                   Aceptar invitación
                 </Button>
               </Stack>
@@ -100,7 +100,7 @@ export default function Registro() {
             <Card.Body p={8}>
               <form onSubmit={handleSetup}>
                 <Stack gap={5}>
-                  <Text fontSize="xs" fontWeight="700" color="blue.600" textTransform="uppercase" letterSpacing="wide">
+                  <Text fontSize="xs" fontWeight="700" color="teal.600" textTransform="uppercase" letterSpacing="wide">
                     Configurá tu geriátrico
                   </Text>
                   <FieldRoot>
@@ -132,7 +132,7 @@ export default function Registro() {
                       />
                     </FieldRoot>
                   </Grid>
-                  <Button type="submit" colorPalette="blue" size="lg" w="full" loading={cargando} mt={2}>
+                  <Button type="submit" colorPalette="teal" size="lg" w="full" loading={cargando} mt={2}>
                     Crear geriátrico
                   </Button>
                 </Stack>

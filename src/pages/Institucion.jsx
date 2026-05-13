@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { supabase } from "../services/supabase"
 import { useAuth } from "../contexts/AuthContext"
 import {
@@ -21,7 +21,6 @@ export default function Institucion() {
   })
   const [cargando, setCargando] = useState(true)
   const [guardando, setGuardando] = useState(false)
-  const [totalPacientes, setTotalPacientes] = useState(0)
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
 
@@ -37,11 +36,6 @@ export default function Institucion() {
       provincia: geriatrico.provincia || "",
       capacidad: geriatrico.capacidad || "",
     })
-    supabase
-      .from("Pacientes")
-      .select("id", { count: "exact" })
-      .eq("geriatrico_id", geriatrico.id)
-      .then(({ count }) => setTotalPacientes(count || 0))
     setCargando(false)
   }, [geriatrico?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -69,14 +63,10 @@ export default function Institucion() {
     }
   }
 
-  const ocupacion = form.capacidad > 0
-    ? Math.round((totalPacientes / parseInt(form.capacidad)) * 100)
-    : null
-
   if (cargando) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" py={20}>
-        <Spinner size="xl" color="blue.500" />
+        <Spinner size="xl" color="teal.500" />
       </Box>
     )
   }
@@ -89,35 +79,6 @@ export default function Institucion() {
         <Heading size="lg" color="text.main">Institución</Heading>
         <Text fontSize="sm" color="text.muted">Datos y configuración de tu geriátrico</Text>
       </Box>
-
-      {/* Stats de ocupación */}
-      {form.capacidad > 0 && (
-        <Grid templateColumns="repeat(3, 1fr)" gap={4} mb={6}>
-          <Card.Root borderRadius="xl" boxShadow="sm" bg="blue.600" color="white">
-            <Card.Body py={4} px={5}>
-              <Text fontSize="xs" opacity={0.8} mb={1} fontWeight="500">Ocupación</Text>
-              <Text fontSize="2xl" fontWeight="800">{ocupacion}%</Text>
-              <Text fontSize="xs" opacity={0.7} mt={1}>{totalPacientes} de {form.capacidad} plazas</Text>
-            </Card.Body>
-          </Card.Root>
-          <Card.Root borderRadius="xl" boxShadow="sm" bg="bg.panel">
-            <Card.Body py={4} px={5}>
-              <Text fontSize="xs" color="text.faint" mb={1} fontWeight="500">Plazas ocupadas</Text>
-              <Text fontSize="2xl" fontWeight="700" color="text.main">{totalPacientes}</Text>
-              <Text fontSize="xs" color="text.faint" mt={1}>pacientes activos</Text>
-            </Card.Body>
-          </Card.Root>
-          <Card.Root borderRadius="xl" boxShadow="sm" bg="bg.panel">
-            <Card.Body py={4} px={5}>
-              <Text fontSize="xs" color="text.faint" mb={1} fontWeight="500">Plazas libres</Text>
-              <Text fontSize="2xl" fontWeight="700" color={parseInt(form.capacidad) - totalPacientes > 0 ? "green.600" : "red.500"}>
-                {Math.max(0, parseInt(form.capacidad) - totalPacientes)}
-              </Text>
-              <Text fontSize="xs" color="text.faint" mt={1}>disponibles</Text>
-            </Card.Body>
-          </Card.Root>
-        </Grid>
-      )}
 
       {/* Formulario */}
       <Stack gap={5}>
@@ -200,7 +161,7 @@ export default function Institucion() {
         </Card.Root>
 
         <HStack>
-          <Button colorPalette="blue" onClick={guardar} loading={guardando}>
+          <Button colorPalette="teal" onClick={guardar} loading={guardando}>
             Guardar cambios
           </Button>
         </HStack>

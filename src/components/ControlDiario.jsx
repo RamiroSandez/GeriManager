@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { supabase } from "../services/supabase"
 import {
   Box, Button, Grid, Heading, HStack, Input, Stack, Text,
@@ -15,11 +15,11 @@ const MEALS = [
 ]
 
 const VITALS = [
-  { key: "presion_maxima", label: "Presión Máx.",  step: "1",   placeholder: "ej: 120" },
-  { key: "presion_minima", label: "Presión Mín.",  step: "1",   placeholder: "ej: 80" },
-  { key: "pulso",          label: "Pulso",         step: "1",   placeholder: "ej: 72" },
-  { key: "temperatura",    label: "Temperatura",   step: "0.1", placeholder: "ej: 36.5" },
-  { key: "respiracion",    label: "Respiración",   step: "1",   placeholder: "ej: 16" },
+  { key: "presion_maxima", label: "Presión Máx.",  step: "1",   placeholder: "ej: 120", min: 40,  max: 300 },
+  { key: "presion_minima", label: "Presión Mín.",  step: "1",   placeholder: "ej: 80",  min: 20,  max: 200 },
+  { key: "pulso",          label: "Pulso",         step: "1",   placeholder: "ej: 72",  min: 20,  max: 300 },
+  { key: "temperatura",    label: "Temperatura",   step: "0.1", placeholder: "ej: 36.5",min: 30,  max: 45  },
+  { key: "respiracion",    label: "Respiración",   step: "1",   placeholder: "ej: 16",  min: 4,   max: 60  },
 ]
 
 const ROW_H  = "34px"
@@ -123,9 +123,12 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
     setGuardando(true)
     const { fecha } = formDia
 
+    const signosPayload = Object.fromEntries(
+      Object.entries(formDia.signos).map(([k, v]) => [k, v === "" ? null : Number(v)])
+    )
     const { error: errSig } = await supabase
       .from("registro_signos_vitales")
-      .upsert({ paciente_id: pacienteId, fecha, ...formDia.signos }, { onConflict: "paciente_id,fecha" })
+      .upsert({ paciente_id: pacienteId, fecha, ...signosPayload }, { onConflict: "paciente_id,fecha" })
 
     if (errSig) {
       toaster.create({ title: "Error al guardar signos", description: errSig.message, type: "error", duration: 4000 })
@@ -187,7 +190,7 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
         <HStack gap={2}>
           <Button size="xs" variant="outline" onClick={prevMonth}>‹</Button>
           <Button size="xs" variant="outline" onClick={nextMonth}>›</Button>
-          <Button size="xs" colorPalette="blue" variant="outline" onClick={() => window.print()}>
+          <Button size="xs" colorPalette="teal" variant="outline" onClick={() => window.print()}>
             Imprimir
           </Button>
         </HStack>
@@ -219,9 +222,9 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
               alignItems="center"
               borderBottom="1px solid"
               borderColor="border.subtle"
-              bg="blue.50"
+              bg="bg.hover"
             >
-              <Text fontSize="10px" fontWeight="700" color="blue.700" textTransform="uppercase" letterSpacing="wider">
+              <Text fontSize="10px" fontWeight="700" color="teal.600" textTransform="uppercase" letterSpacing="wider">
                 Medicación
               </Text>
             </Box>
@@ -254,9 +257,9 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
               alignItems="center"
               borderBottom="1px solid"
               borderColor="border.subtle"
-              bg="green.50"
+              bg="bg.muted"
             >
-              <Text fontSize="10px" fontWeight="700" color="green.700" textTransform="uppercase" letterSpacing="wider">
+              <Text fontSize="10px" fontWeight="700" color="green.600" textTransform="uppercase" letterSpacing="wider">
                 Signos Vitales
               </Text>
             </Box>
@@ -295,7 +298,7 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
                 borderColor="border.subtle"
                 cursor="pointer"
                 onClick={() => abrirDia(dia)}
-                _hover={{ bg: "blue.50" }}
+                _hover={{ bg: "bg.hover" }}
                 transition="background 0.1s"
               >
                 {/* Day number */}
@@ -306,19 +309,19 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
                   justifyContent="center"
                   borderBottom="1px solid"
                   borderColor="border.subtle"
-                  bg={eHoy ? "blue.600" : tieneAlgo ? "green.100" : "bg.muted"}
+                  bg={eHoy ? "teal.600" : tieneAlgo ? "bg.hover" : "bg.muted"}
                 >
                   <Text
                     fontSize="xs"
                     fontWeight="700"
-                    color={eHoy ? "white" : tieneAlgo ? "green.800" : "text.main"}
+                    color={eHoy ? "white" : "text.main"}
                   >
                     {dia}
                   </Text>
                 </Box>
 
                 {/* Medicación section header spacer */}
-                <Box h={SEC_H} borderBottom="1px solid" borderColor="border.subtle" bg="blue.50" />
+                <Box h={SEC_H} borderBottom="1px solid" borderColor="border.subtle" bg="bg.hover" />
 
                 {/* Medication rows */}
                 {medicamentos.length === 0 ? (
@@ -343,7 +346,7 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
                           w="9px"
                           h="9px"
                           borderRadius="2px"
-                          bg={r?.[meal.key] ? "blue.500" : "gray.200"}
+                          bg={r?.[meal.key] ? "teal.500" : "gray.200"}
                           title={meal.full}
                           flexShrink={0}
                         />
@@ -382,7 +385,7 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
       <HStack className="no-print" mt={3} gap={4} flexWrap="wrap">
         {MEALS.map(m => (
           <HStack key={m.key} gap={1}>
-            <Box w="9px" h="9px" borderRadius="2px" bg="blue.500" flexShrink={0} />
+            <Box w="9px" h="9px" borderRadius="2px" bg="teal.500" flexShrink={0} />
             <Text fontSize="xs" color="text.faint">{m.label} = {m.full}</Text>
           </HStack>
         ))}
@@ -546,7 +549,7 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
                 {/* Medicación */}
                 {medicamentos.length > 0 && (
                   <Box>
-                    <Text fontWeight="600" fontSize="sm" color="blue.600" mb={3}>Medicación</Text>
+                    <Text fontWeight="600" fontSize="sm" color="teal.600" mb={3}>Medicación</Text>
                     <Stack gap={3}>
                       {medicamentos.map(m => (
                         <Box key={m.id} p={3} border="1px solid" borderColor="border.subtle" borderRadius="lg">
@@ -561,8 +564,8 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
                                   py={1.5}
                                   borderRadius="md"
                                   border="1px solid"
-                                  borderColor={checked ? "blue.500" : "border.subtle"}
-                                  bg={checked ? "blue.500" : "bg.muted"}
+                                  borderColor={checked ? "teal.500" : "border.subtle"}
+                                  bg={checked ? "teal.500" : "bg.muted"}
                                   color={checked ? "white" : "text.muted"}
                                   fontSize="sm"
                                   fontWeight="500"
@@ -592,7 +595,8 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
                         <Input
                           type="number"
                           step={v.step}
-                          min="0"
+                          min={v.min}
+                          max={v.max}
                           size="sm"
                           value={formDia.signos?.[v.key] || ""}
                           onChange={e => setSigno(v.key, e.target.value)}
@@ -606,7 +610,7 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
             </DialogBody>
             <DialogFooter gap={2}>
               <Button variant="ghost" onClick={() => setDiaOpen(null)}>Cancelar</Button>
-              <Button colorPalette="blue" onClick={guardar} loading={guardando}>Guardar</Button>
+              <Button colorPalette="teal" onClick={guardar} loading={guardando}>Guardar</Button>
             </DialogFooter>
           </DialogContent>
         </DialogPositioner>

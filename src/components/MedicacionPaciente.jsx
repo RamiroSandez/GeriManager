@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { supabase } from "../services/supabase"
 import { useAuth } from "../contexts/AuthContext"
 import {
   Box, Button, FieldLabel, FieldRoot,
-  Grid, HStack, Input, Stack, Text,
+  Grid, HStack, Input, NativeSelect, Stack, Text,
 } from "@chakra-ui/react"
 import { toaster } from "./toaster"
 
@@ -81,7 +81,7 @@ export default function MedicacionPaciente({ pacienteId }) {
         <Text fontWeight="semibold" fontSize="sm" color="text.main">Medicación activa</Text>
         <Button
           size="sm"
-          colorPalette="blue"
+          colorPalette="teal"
           variant="outline"
           onClick={() => { setMostrarForm(!mostrarForm); setForm(FORM_INICIAL) }}
         >
@@ -109,26 +109,21 @@ export default function MedicacionPaciente({ pacienteId }) {
               <Grid templateColumns={{ base: "1fr", md: "1fr 1fr 1fr" }} gap={3} mb={3}>
                 <FieldRoot required>
                   <FieldLabel fontSize="sm">Medicamento *</FieldLabel>
-                  <select
-                    value={form.medicamento_id}
-                    onChange={e => set("medicamento_id", e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #E2E8F0",
-                      fontSize: "14px",
-                      background: "white",
-                      color: "#1A202C",
-                    }}
-                  >
-                    <option value="">Seleccionar...</option>
-                    {catalogo.map(m => (
-                      <option key={m.id} value={m.id}>
-                        {m.nombre}{m.dosis_estandar ? ` — ${m.dosis_estandar}` : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <NativeSelect.Root>
+                    <NativeSelect.Field
+                      value={form.medicamento_id}
+                      onChange={e => set("medicamento_id", e.target.value)}
+                      bg="bg.panel"
+                    >
+                      <option value="">Seleccionar...</option>
+                      {catalogo.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.nombre}{m.dosis_estandar ? ` — ${m.dosis_estandar}` : ""}
+                        </option>
+                      ))}
+                    </NativeSelect.Field>
+                    <NativeSelect.Indicator />
+                  </NativeSelect.Root>
                 </FieldRoot>
                 <FieldRoot>
                   <FieldLabel fontSize="sm">Dosis</FieldLabel>
@@ -167,7 +162,7 @@ export default function MedicacionPaciente({ pacienteId }) {
                   />
                 </FieldRoot>
               </Grid>
-              <Button colorPalette="blue" size="sm" onClick={guardar} loading={guardando}>
+              <Button colorPalette="teal" size="sm" onClick={guardar} loading={guardando}>
                 Asignar
               </Button>
             </>

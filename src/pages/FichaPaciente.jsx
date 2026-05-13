@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { supabase } from "../services/supabase"
 import {
@@ -6,6 +6,15 @@ import {
   Box,
   Button,
   Card,
+  DialogBackdrop,
+  DialogBody,
+  DialogCloseTrigger,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogPositioner,
+  DialogRoot,
+  DialogTitle,
   FieldLabel,
   FieldRoot,
   Grid,
@@ -33,12 +42,14 @@ const ESTADOS_PACIENTE = {
 export default function FichaPaciente() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, geriatrico } = useAuth()
 
   const [paciente, setPaciente] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [guardando, setGuardando] = useState(false)
   const [cambiandoEstado, setCambiandoEstado] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [eliminando, setEliminando] = useState(false)
   const [form, setForm] = useState({})
   const [eventos, setEventos] = useState([])
   const fetchPaciente = async () => {
@@ -94,7 +105,41 @@ export default function FichaPaciente() {
     setCambiandoEstado(false)
   }
 
+  const eliminarPaciente = async () => {
+    setEliminando(true)
+    await Promise.all([
+      supabase.from("registro_signos_vitales").delete().eq("paciente_id", id),
+      supabase.from("registro_medicacion_diaria").delete().eq("paciente_id", id),
+      supabase.from("paciente_medicamentos").delete().eq("paciente_id", id),
+      supabase.from("amparos").delete().eq("paciente_id", id),
+      supabase.from("eventos").delete().eq("paciente_id", id),
+      supabase.from("documentos").delete().eq("paciente_id", id),
+    ])
+    const { error } = await supabase.from("Pacientes").delete().eq("id", id)
+    setEliminando(false)
+    if (error) {
+      toaster.create({ title: "Error al eliminar", description: error.message, type: "error", duration: 4000 })
+    } else {
+      toaster.create({ title: "Paciente eliminado", type: "success", duration: 3000 })
+      navigate("/pacientes")
+    }
+  }
+
+  const hoy = new Date().toISOString().split("T")[0]
+
   const guardarDatos = async () => {
+    if (!form.Nombre_Completo?.trim()) {
+      toaster.create({ title: "El nombre es obligatorio", type: "error", duration: 3000 })
+      return
+    }
+    if (form.dni && !/^\d{7,8}$/.test(form.dni.trim())) {
+      toaster.create({ title: "DNI inválido", description: "Debe tener 7 u 8 dígitos numéricos", type: "error", duration: 3000 })
+      return
+    }
+    if (form.fecha_nacimiento && form.fecha_nacimiento > hoy) {
+      toaster.create({ title: "Fecha de nacimiento inválida", description: "No puede ser una fecha futura", type: "error", duration: 3000 })
+      return
+    }
     setGuardando(true)
     const estadoActual = paciente.estado || "activo"
     const estadoNuevo = form.estado || "activo"
@@ -133,7 +178,7 @@ export default function FichaPaciente() {
   if (cargando) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" py={20}>
-        <Spinner size="xl" color="blue.500" />
+        <Spinner size="xl" color="teal.500" />
       </Box>
     )
   }
@@ -141,7 +186,7 @@ export default function FichaPaciente() {
   if (!paciente) {
     return (
       <Box textAlign="center" py={20}>
-        <Text color="gray.500">Paciente no encontrado.</Text>
+        <Text color="text.muted">Paciente no encontrado.</Text>
         <Button mt={4} onClick={() => navigate("/")}>Volver al inicio</Button>
       </Box>
     )
@@ -155,28 +200,36 @@ export default function FichaPaciente() {
 
       {/* Header */}
       <HStack mb={5} gap={4} flexWrap="wrap" align="flex-start">
-        <Button variant="ghost" size="sm" colorPalette="blue" onClick={() => navigate("/")}>
+        <Button variant="ghost" size="sm" colorPalette="teal" onClick={() => navigate("/")}>
           ← Volver
         </Button>
         <Box flex={1}>
           <HStack gap={3} flexWrap="wrap" justify="space-between">
             <HStack gap={3} flexWrap="wrap">
-              <Heading size="lg" color="gray.800">{paciente.Nombre_Completo}</Heading>
+              <Heading size="lg" color="text.main">{paciente.Nombre_Completo}</Heading>
               <Badge colorPalette={estadoPaciente.color} variant="subtle" borderRadius="full" px={3} py={1} fontSize="sm">
                 {estadoPaciente.label}
               </Badge>
             </HStack>
-            <Button
-              size="sm"
-              colorPalette={paciente.estado === "baja" ? "green" : "red"}
-              variant="outline"
-              onClick={cambiarEstado}
-              loading={cambiandoEstado}
-            >
-              {paciente.estado === "baja" ? "Reactivar paciente" : "Dar de baja"}
-            </Button>
+            <HStack gap={2}>
+              <Button
+                size="sm"
+                colorPalette={paciente.estado === "baja" ? "green" : "red"}
+                variant="outline"
+                onClick={cambiarEstado}
+                loading={cambiandoEstado}
+              >
+                {paciente.estado === "baja" ? "Reactivar paciente" : "Dar de baja"}
+              </Button>
+              <Button
+                size="sm" colorPalette="red" variant="ghost"
+                onClick={() => setConfirmDelete(true)}
+              >
+                🗑 Eliminar
+              </Button>
+            </HStack>
           </HStack>
-          <Text color="gray.500" fontSize="sm" mt={1}>
+          <Text color="text.muted" fontSize="sm" mt={1}>
             DNI: {paciente.dni}
             {paciente.Obra_social && ` | Obra Social: ${paciente.Obra_social}`}
           </Text>
@@ -187,9 +240,8 @@ export default function FichaPaciente() {
       <Tabs.Root defaultValue="datos">
         <Tabs.List mb={4}>
           <Tabs.Trigger value="datos">Datos del paciente</Tabs.Trigger>
-          <Tabs.Trigger value="medicacion">Medicación</Tabs.Trigger>
           <Tabs.Trigger value="control">Control diario</Tabs.Trigger>
-          <Tabs.Trigger value="consentimiento">Consentimiento</Tabs.Trigger>
+          <Tabs.Trigger value="medicacion">Medicación</Tabs.Trigger>
           <Tabs.Trigger value="documentos">Documentos</Tabs.Trigger>
           <Tabs.Trigger value="historial">Historial</Tabs.Trigger>
         </Tabs.List>
@@ -205,7 +257,12 @@ export default function FichaPaciente() {
                 </FieldRoot>
                 <FieldRoot>
                   <FieldLabel fontSize="sm">DNI</FieldLabel>
-                  <Input value={form.dni || ""} onChange={e => set("dni", e.target.value)} />
+                  <Input
+                    value={form.dni || ""}
+                    onChange={e => set("dni", e.target.value.replace(/\D/g, "").slice(0, 8))}
+                    inputMode="numeric"
+                    maxLength={8}
+                  />
                 </FieldRoot>
                 <FieldRoot>
                   <FieldLabel fontSize="sm">Obra Social</FieldLabel>
@@ -217,7 +274,7 @@ export default function FichaPaciente() {
                 </FieldRoot>
                 <FieldRoot>
                   <FieldLabel fontSize="sm">Fecha de nacimiento</FieldLabel>
-                  <Input type="date" value={form.fecha_nacimiento || ""} onChange={e => set("fecha_nacimiento", e.target.value)} />
+                  <Input type="date" value={form.fecha_nacimiento || ""} onChange={e => set("fecha_nacimiento", e.target.value)} min="1900-01-01" max={hoy} />
                 </FieldRoot>
                 <GridItem colSpan={{ base: 1, md: 2 }}>
                   <FieldRoot>
@@ -246,18 +303,14 @@ export default function FichaPaciente() {
                   </FieldRoot>
                 </GridItem>
               </Grid>
-              <Button mt={5} colorPalette="blue" onClick={guardarDatos} loading={guardando}>
-                Guardar cambios
-              </Button>
-            </Card.Body>
-          </Card.Root>
-        </Tabs.Content>
-
-        {/* Tab: Medicación */}
-        <Tabs.Content value="medicacion">
-          <Card.Root borderRadius="xl" boxShadow="md">
-            <Card.Body>
-              <MedicacionPaciente pacienteId={Number(id)} />
+              <HStack mt={5} gap={3}>
+                <Button colorPalette="teal" onClick={guardarDatos} loading={guardando}>
+                  Guardar cambios
+                </Button>
+                <Button variant="outline" colorPalette="teal" size="md" onClick={() => window.print()}>
+                  Imprimir consentimiento
+                </Button>
+              </HStack>
             </Card.Body>
           </Card.Root>
         </Tabs.Content>
@@ -271,109 +324,13 @@ export default function FichaPaciente() {
           </Card.Root>
         </Tabs.Content>
 
-        {/* Tab: Consentimiento */}
-        <Tabs.Content value="consentimiento">
-          <Stack gap={4}>
-            {/* Apartado de descarga */}
-            <Card.Root borderRadius="xl" boxShadow="sm">
-              <Card.Body>
-                <HStack justify="space-between" align="center">
-                  <Box>
-                    <Text fontWeight="semibold" fontSize="sm">Consentimiento de ingreso</Text>
-                    <Text fontSize="xs" color="gray.500" mt={0.5}>
-                      Imprimí el documento y completalo a mano
-                    </Text>
-                  </Box>
-                  <Button
-                    colorPalette="blue"
-                    size="sm"
-                    onClick={() => window.print()}
-                  >
-                    Imprimir documento
-                  </Button>
-                </HStack>
-              </Card.Body>
-            </Card.Root>
-
-            {/* Vista previa del documento */}
-            <Card.Root borderRadius="xl" boxShadow="md">
-              <Card.Body>
-                <Box
-                  id="consentimiento-print"
-                  border="1px solid"
-                  borderColor="gray.200"
-                  borderRadius="lg"
-                  p={8}
-                  maxW="700px"
-                  mx="auto"
-                  bg="white"
-                  fontFamily="serif"
-                >
-                  <Text
-                    fontSize="xl"
-                    fontWeight="bold"
-                    textAlign="center"
-                    textDecoration="underline"
-                    mb={6}
-                    fontStyle="italic"
-                  >
-                    Residencia Geriátrica "Del Este"
-                  </Text>
-
-                  <Text fontSize="md" fontWeight="semibold" mb={5}>
-                    Consentimiento
-                  </Text>
-
-                  <Box mb={5}>
-                    <HStack gap={2} mb={3} align="flex-end">
-                      <Text fontSize="sm" fontWeight="bold" whiteSpace="nowrap">NOMBRE Y APELLIDO:</Text>
-                      <Box flex={1} borderBottom="1px solid" borderColor="gray.500" h="20px" />
-                    </HStack>
-                    <HStack gap={2} align="flex-end">
-                      <Text fontSize="sm" fontWeight="bold" whiteSpace="nowrap">DNI:</Text>
-                      <Box flex={1} borderBottom="1px solid" borderColor="gray.500" h="20px" />
-                    </HStack>
-                  </Box>
-
-                  <Text fontSize="sm" mb={2} lineHeight="tall">
-                    Formulo mi consentimiento expreso de ingresar a la "Residencia Geriátrica Del Este" conforme a los derechos y obligaciones.
-                  </Text>
-                  <Text fontSize="sm" mb={10} lineHeight="tall">
-                    La residencia cumple con los protocolos establecidos.
-                  </Text>
-
-                  <HStack justify="flex-end" mb={10} gap={2} align="flex-end">
-                    <Text fontSize="sm" fontWeight="bold">Buenos Aires,</Text>
-                    <Box w="32px" borderBottom="1px solid" borderColor="gray.500" h="20px" />
-                    <Text fontSize="sm">/</Text>
-                    <Box w="32px" borderBottom="1px solid" borderColor="gray.500" h="20px" />
-                    <Text fontSize="sm">/</Text>
-                    <Box w="56px" borderBottom="1px solid" borderColor="gray.500" h="20px" />
-                  </HStack>
-
-                  <Grid templateColumns="1fr 1fr" gap={16} mt={8}>
-                    <Box>
-                      <Box borderBottom="2px solid" borderColor="gray.600" mb={2} h="60px" />
-                      <Text fontSize="xs" textAlign="center" color="gray.600">Firma</Text>
-                    </Box>
-                    <Box>
-                      <Box borderBottom="2px solid" borderColor="gray.600" mb={2} h="60px" />
-                      <Text fontSize="xs" textAlign="center" color="gray.600">Aclaración</Text>
-                    </Box>
-                  </Grid>
-                </Box>
-              </Card.Body>
-            </Card.Root>
-          </Stack>
-
-          <style>{`
-            @page { margin: 0; size: A4 portrait; }
-            @media print {
-              body * { visibility: hidden; }
-              #consentimiento-print, #consentimiento-print * { visibility: visible; }
-              #consentimiento-print { position: fixed; top: 0; left: 0; width: 100%; padding: 60px; border: none !important; border-radius: 0 !important; }
-            }
-          `}</style>
+        {/* Tab: Medicación */}
+        <Tabs.Content value="medicacion">
+          <Card.Root borderRadius="xl" boxShadow="md">
+            <Card.Body>
+              <MedicacionPaciente pacienteId={Number(id)} />
+            </Card.Body>
+          </Card.Root>
         </Tabs.Content>
 
         {/* Tab: Documentos */}
@@ -390,7 +347,7 @@ export default function FichaPaciente() {
           <Card.Root borderRadius="xl" boxShadow="md">
             <Card.Body>
               {eventos.length === 0 ? (
-                <Text color="gray.400" textAlign="center" py={8}>
+                <Text color="text.faint" textAlign="center" py={8}>
                   No hay eventos registrados aún.
                 </Text>
               ) : (
@@ -401,13 +358,13 @@ export default function FichaPaciente() {
                       gap={4}
                       py={3}
                       borderBottom={i < eventos.length - 1 ? "1px solid" : "none"}
-                      borderColor="gray.100"
+                      borderColor="border.subtle"
                       align="flex-start"
                     >
-                      <Box w="8px" h="8px" borderRadius="full" bg="blue.400" mt="6px" flexShrink={0} />
+                      <Box w="8px" h="8px" borderRadius="full" bg="teal.400" mt="6px" flexShrink={0} />
                       <Box flex={1}>
                         <Text fontSize="sm" fontWeight="500">{ev.descripcion}</Text>
-                        <Text fontSize="xs" color="gray.400" mt={0.5}>
+                        <Text fontSize="xs" color="text.faint" mt={0.5}>
                           {new Date(ev.created_at).toLocaleString("es-AR", {
                             day: "2-digit", month: "2-digit", year: "numeric",
                             hour: "2-digit", minute: "2-digit",
@@ -422,6 +379,73 @@ export default function FichaPaciente() {
           </Card.Root>
         </Tabs.Content>
       </Tabs.Root>
+
+      {/* Formulario de consentimiento oculto — solo visible al imprimir */}
+      <Box id="consentimiento-print" display="none" fontFamily="serif" p={10}>
+        <Text fontSize="xl" fontWeight="bold" textAlign="center" textDecoration="underline" mb={6} fontStyle="italic">
+          {geriatrico?.nombre || "Residencia Geriátrica"}
+        </Text>
+        <Text fontSize="md" fontWeight="semibold" mb={5}>Consentimiento de Ingreso</Text>
+        <HStack gap={2} mb={3} align="flex-end">
+          <Text fontSize="sm" fontWeight="bold" whiteSpace="nowrap">NOMBRE Y APELLIDO:</Text>
+          <Box as="span" style={{ display: "inline-block", minWidth: 200, borderBottom: "1px solid #333" }}>&nbsp;</Box>
+        </HStack>
+        <HStack gap={2} mb={6} align="flex-end">
+          <Text fontSize="sm" fontWeight="bold" whiteSpace="nowrap">DNI:</Text>
+          <Box as="span" style={{ display: "inline-block", minWidth: 120, borderBottom: "1px solid #333" }}>&nbsp;</Box>
+        </HStack>
+        <Text fontSize="sm" mb={2} style={{ lineHeight: 1.8 }}>
+          Formulo mi consentimiento expreso de ingresar a la residencia geriátrica conforme a los derechos y obligaciones establecidos.
+        </Text>
+        <Text fontSize="sm" mb={12} style={{ lineHeight: 1.8 }}>
+          La residencia cumple con todos los protocolos establecidos por la normativa vigente.
+        </Text>
+        <Grid templateColumns="1fr 1fr" gap={16} mt={8}>
+          <Box>
+            <Box style={{ borderBottom: "2px solid #444", marginBottom: 8, height: 60 }} />
+            <Text fontSize="xs" textAlign="center">Firma</Text>
+          </Box>
+          <Box>
+            <Box style={{ borderBottom: "2px solid #444", marginBottom: 8, height: 60 }} />
+            <Text fontSize="xs" textAlign="center">Aclaración</Text>
+          </Box>
+        </Grid>
+      </Box>
+
+      <style>{`
+        @page { margin: 0; size: A4 portrait; }
+        @media print {
+          body * { visibility: hidden; }
+          #consentimiento-print, #consentimiento-print * { visibility: visible; display: block !important; }
+          #consentimiento-print { position: fixed; top: 0; left: 0; width: 100%; padding: 60px; }
+        }
+      `}</style>
+
+      <DialogRoot open={confirmDelete} onOpenChange={e => { if (!e.open) setConfirmDelete(false) }}>
+        <DialogBackdrop />
+        <DialogPositioner>
+          <DialogContent borderRadius="xl" maxW="400px">
+            <DialogHeader>
+              <DialogTitle>Eliminar paciente</DialogTitle>
+            </DialogHeader>
+            <DialogCloseTrigger />
+            <DialogBody>
+              <Text fontSize="sm" color="text.muted">
+                ¿Estás seguro que querés eliminar a <Text as="span" fontWeight="700" color="text.main">{paciente?.Nombre_Completo}</Text>?
+              </Text>
+              <Text fontSize="xs" color="red.500" mt={2}>
+                Esta acción eliminará todos sus registros (signos vitales, medicación, documentos, amparos). No se puede deshacer.
+              </Text>
+            </DialogBody>
+            <DialogFooter gap={2}>
+              <Button variant="ghost" onClick={() => setConfirmDelete(false)}>Cancelar</Button>
+              <Button colorPalette="red" onClick={eliminarPaciente} loading={eliminando}>
+                Sí, eliminar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </DialogPositioner>
+      </DialogRoot>
     </Box>
   )
 }

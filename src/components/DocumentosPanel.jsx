@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+﻿import { useState, useEffect, useRef } from "react"
 import { supabase } from "../services/supabase"
 import {
   Box,
@@ -104,9 +104,9 @@ export default function DocumentosPanel({ pacienteId }) {
   return (
     <Stack gap={5}>
       {/* Sección de carga */}
-      <Card.Root borderRadius="lg" bg="blue.50" border="1px solid" borderColor="blue.100">
+      <Card.Root borderRadius="lg" bg="bg.hover" border="1px solid" borderColor="border.subtle">
         <Card.Body>
-          <Text fontWeight="600" mb={3} color="blue.700">Subir nuevo documento</Text>
+          <Text fontWeight="600" mb={3} color="teal.600">Subir nuevo documento</Text>
           <Stack gap={3}>
             <FieldRoot>
               <FieldLabel fontSize="sm">Tipo de documento</FieldLabel>
@@ -114,7 +114,7 @@ export default function DocumentosPanel({ pacienteId }) {
                 <NativeSelect.Field
                   value={tipoSeleccionado}
                   onChange={e => setTipoSeleccionado(e.target.value)}
-                  bg="white"
+                  bg="bg.panel"
                 >
                   {Object.entries(TIPOS_DOCUMENTO).map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>
@@ -130,7 +130,7 @@ export default function DocumentosPanel({ pacienteId }) {
                 onChange={e => setNotasDoc(e.target.value)}
                 placeholder="Observaciones sobre este documento..."
                 rows={2}
-                bg="white"
+                bg="bg.panel"
               />
             </FieldRoot>
             <input
@@ -141,7 +141,7 @@ export default function DocumentosPanel({ pacienteId }) {
               accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
             />
             <Button
-              colorPalette="blue"
+              colorPalette="teal"
               alignSelf="flex-start"
               loading={subiendo}
               onClick={() => fileInputRef.current?.click()}
@@ -159,10 +159,10 @@ export default function DocumentosPanel({ pacienteId }) {
         </Text>
         {cargando ? (
           <Box display="flex" justifyContent="center" py={6}>
-            <Spinner color="blue.500" />
+            <Spinner color="teal.500" />
           </Box>
         ) : documentos.length === 0 ? (
-          <Text color="gray.400" textAlign="center" py={8}>
+          <Text color="text.faint" textAlign="center" py={8}>
             No hay documentos subidos aún.
           </Text>
         ) : (
@@ -171,10 +171,10 @@ export default function DocumentosPanel({ pacienteId }) {
               <HStack
                 key={doc.id}
                 p={3}
-                bg="white"
+                bg="bg.panel"
                 borderRadius="lg"
                 border="1px solid"
-                borderColor="gray.100"
+                borderColor="border.subtle"
                 boxShadow="xs"
                 justify="space-between"
                 flexWrap="wrap"
@@ -194,9 +194,9 @@ export default function DocumentosPanel({ pacienteId }) {
                   <Box>
                     <Text fontSize="sm" fontWeight="500">{doc.nombre_archivo}</Text>
                     {doc.notas && (
-                      <Text fontSize="xs" color="gray.500">{doc.notas}</Text>
+                      <Text fontSize="xs" color="text.muted">{doc.notas}</Text>
                     )}
-                    <Text fontSize="xs" color="gray.400">
+                    <Text fontSize="xs" color="text.faint">
                       {new Date(doc.subido_at).toLocaleDateString("es-AR", {
                         day: "2-digit", month: "2-digit", year: "numeric",
                       })}
@@ -207,7 +207,7 @@ export default function DocumentosPanel({ pacienteId }) {
                   <Button
                     size="xs"
                     variant="outline"
-                    colorPalette="blue"
+                    colorPalette="teal"
                     onClick={() => window.open(getPublicUrl(doc.storage_path), "_blank")}
                   >
                     Ver

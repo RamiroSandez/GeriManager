@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { supabase } from "../services/supabase"
 import { useAuth } from "../contexts/AuthContext"
 import {
@@ -69,6 +69,7 @@ export default function Gastos() {
   const [mostrarForm, setMostrarForm] = useState(false)
   const [editandoId, setEditandoId] = useState(null)
   const [totalMesAnterior, setTotalMesAnterior] = useState(null)
+  const [confirmarEliminar, setConfirmarEliminar] = useState(null) // id del gasto
   const [form, setForm] = useState(formVacio)
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }))
@@ -152,8 +153,10 @@ export default function Gastos() {
     }
   }
 
-  const eliminarGasto = async (id) => {
-    const { error } = await supabase.from("gastos").delete().eq("id", id)
+  const eliminarGasto = async () => {
+    if (!confirmarEliminar) return
+    const { error } = await supabase.from("gastos").delete().eq("id", confirmarEliminar)
+    setConfirmarEliminar(null)
     if (!error) {
       toaster.create({ title: "Gasto eliminado", type: "success", duration: 2000 })
       fetchGastos()
@@ -165,6 +168,7 @@ export default function Gastos() {
   const variacion = totalMesAnterior > 0
     ? Math.round(((totalMes - totalMesAnterior) / totalMesAnterior) * 100)
     : null
+  const mayorGasto = gastos.reduce((max, g) => Number(g.monto) > Number(max?.monto || 0) ? g : max, null)
 
   const resumenCategorias = Object.entries(CATEGORIAS_GASTO)
     .map(([key, cat]) => ({
@@ -233,9 +237,33 @@ export default function Gastos() {
             </Grid>
             <HStack mt={5} justify="flex-end" gap={3}>
               <Button variant="ghost" onClick={cerrarForm}>Cancelar</Button>
-              <Button colorPalette="blue" onClick={guardarGasto} loading={guardando}>
+              <Button colorPalette="teal" onClick={guardarGasto} loading={guardando}>
                 {editandoId ? "Guardar cambios" : "Registrar gasto"}
               </Button>
+            </HStack>
+          </Box>
+        </Box>
+      )}
+
+      {/* Confirmar eliminación */}
+      {confirmarEliminar && (
+        <Box position="fixed" inset={0} zIndex={300} display="flex" alignItems="center" justifyContent="center">
+          <Box position="absolute" inset={0} bg="blackAlpha.600" onClick={() => setConfirmarEliminar(null)} />
+          <Box
+            position="relative" bg="bg.panel" borderRadius="xl" boxShadow="2xl"
+            p={6} w="full" maxW="380px" mx={4}
+            border="1px solid" borderColor="border.subtle"
+          >
+            <Text fontWeight="700" fontSize="md" color="text.main" mb={2}>Eliminar gasto</Text>
+            <Text fontSize="sm" color="text.muted" mb={1}>
+              ¿Seguro que querés eliminar este gasto?
+            </Text>
+            <Text fontSize="xs" color="text.faint" mb={5}>
+              {gastos.find(g => g.id === confirmarEliminar)?.descripcion}
+            </Text>
+            <HStack justify="flex-end" gap={3}>
+              <Button variant="ghost" size="sm" onClick={() => setConfirmarEliminar(null)}>Cancelar</Button>
+              <Button colorPalette="red" size="sm" onClick={eliminarGasto}>Eliminar</Button>
             </HStack>
           </Box>
         </Box>
@@ -258,13 +286,13 @@ export default function Gastos() {
               disabled={filtroMes >= mesActual()}
             >→</Button>
           </HStack>
-          <Button colorPalette="blue" size="sm" onClick={abrirNuevo}>+ Nuevo gasto</Button>
+          <Button colorPalette="teal" size="sm" onClick={abrirNuevo}>+ Nuevo gasto</Button>
         </HStack>
       </HStack>
 
       {/* Stats */}
       <Grid templateColumns={{ base: "1fr 1fr", md: "repeat(4, 1fr)" }} gap={4} mb={6}>
-        <Card.Root borderRadius="xl" boxShadow="sm" bg="blue.600" color="white" gridColumn={{ base: "span 2", md: "span 1" }}>
+        <Card.Root borderRadius="xl" boxShadow="sm" bg="teal.600" color="white" gridColumn={{ base: "span 2", md: "span 1" }}>
           <Card.Body py={5} px={5}>
             <Text fontSize="xs" opacity={0.8} mb={1} fontWeight="500">Total del mes</Text>
             <Text fontSize="2xl" fontWeight="800">{formatPesos(totalMes)}</Text>
@@ -294,6 +322,18 @@ export default function Gastos() {
             <Text fontSize="xl" fontWeight="700" color="text.main">{resumenCategorias.length}</Text>
             <Text fontSize="xs" color="text.faint" mt={1}>
               {resumenCategorias[0]?.cat.label || "—"} es la mayor
+            </Text>
+          </Card.Body>
+        </Card.Root>
+
+        <Card.Root borderRadius="xl" boxShadow="sm" bg="bg.panel">
+          <Card.Body py={5} px={5}>
+            <Text fontSize="xs" color="text.faint" mb={1} fontWeight="500">Mayor gasto</Text>
+            <Text fontSize="xl" fontWeight="700" color="text.main" truncate>
+              {mayorGasto ? formatPesos(mayorGasto.monto) : "—"}
+            </Text>
+            <Text fontSize="xs" color="text.faint" mt={1} truncate>
+              {mayorGasto?.descripcion || "Sin datos"}
             </Text>
           </Card.Body>
         </Card.Root>
@@ -333,13 +373,13 @@ export default function Gastos() {
           <Card.Body p={0}>
             {cargando ? (
               <Box display="flex" justifyContent="center" py={10}>
-                <Spinner size="lg" color="blue.500" />
+                <Spinner size="lg" color="teal.500" />
               </Box>
             ) : gastos.length === 0 ? (
               <Box textAlign="center" py={14}>
                 <Text fontSize="2xl" mb={2}>💸</Text>
                 <Text color="text.faint" mb={3}>No hay gastos registrados para este mes.</Text>
-                <Button size="sm" colorPalette="blue" onClick={abrirNuevo}>+ Agregar primer gasto</Button>
+                <Button size="sm" colorPalette="teal" onClick={abrirNuevo}>+ Agregar primer gasto</Button>
               </Box>
             ) : (
               <Table.Root size="sm">
@@ -378,8 +418,8 @@ export default function Gastos() {
                         </Table.Cell>
                         <Table.Cell pr={4}>
                           <HStack gap={0}>
-                            <Button size="xs" variant="ghost" colorPalette="blue" onClick={() => abrirEditar(g)}>✏</Button>
-                            <Button size="xs" variant="ghost" colorPalette="red" onClick={() => eliminarGasto(g.id)}>✕</Button>
+                            <Button size="xs" variant="ghost" colorPalette="teal" onClick={() => abrirEditar(g)}>✏</Button>
+                            <Button size="xs" variant="ghost" colorPalette="red" onClick={() => setConfirmarEliminar(g.id)}>✕</Button>
                           </HStack>
                         </Table.Cell>
                       </Table.Row>
@@ -392,7 +432,7 @@ export default function Gastos() {
                       <Table.Cell pl={4} colSpan={4} fontSize="sm" color="text.main">
                         Total {filtroCategoria !== "todas" ? `(${CATEGORIAS_GASTO[filtroCategoria]?.label})` : ""}
                       </Table.Cell>
-                      <Table.Cell textAlign="right" color="blue.600" fontSize="sm">
+                      <Table.Cell textAlign="right" color="teal.600" fontSize="sm">
                         {formatPesos(gastosFiltrados.reduce((acc, g) => acc + Number(g.monto), 0))}
                       </Table.Cell>
                       <Table.Cell pr={4} />
@@ -444,7 +484,7 @@ export default function Gastos() {
                   <Box borderTop="1px solid" borderColor="border.subtle" pt={3}>
                     <HStack justify="space-between">
                       <Text fontWeight="700" fontSize="sm" color="text.main">Total mes</Text>
-                      <Text fontWeight="800" color="blue.600" fontSize="lg">{formatPesos(totalMes)}</Text>
+                      <Text fontWeight="800" color="teal.600" fontSize="lg">{formatPesos(totalMes)}</Text>
                     </HStack>
                   </Box>
                 </Stack>

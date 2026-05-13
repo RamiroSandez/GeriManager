@@ -2,6 +2,18 @@ import { useState, useEffect } from "react"
 import { Box, Text } from "@chakra-ui/react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
+import AlertasPanel from "./AlertasPanel"
+
+function IconPanel() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" />
+      <rect x="14" y="3" width="7" height="7" />
+      <rect x="14" y="14" width="7" height="7" />
+      <rect x="3" y="14" width="7" height="7" />
+    </svg>
+  )
+}
 
 function IconPacientes() {
   return (
@@ -91,55 +103,46 @@ function IconAmparos() {
   )
 }
 
+function IconMenu() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  )
+}
+
+function IconClose() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  )
+}
+
 const NAV_ITEMS = [
-  { label: "Pacientes", path: "/", icon: <IconPacientes />, roles: ["admin", "gerente", "profesional"] },
-  { label: "Amparos", path: "/amparos", icon: <IconAmparos />, roles: ["admin", "gerente", "profesional"] },
+  { label: "Panel", path: "/", icon: <IconPanel />, roles: ["admin", "gerente", "profesional"] },
+  { label: "Pacientes", path: "/pacientes", icon: <IconPacientes />, roles: ["admin", "gerente", "profesional"] },
   { label: "Medicamentos", path: "/medicamentos", icon: <IconMedicamentos />, roles: ["admin", "gerente"] },
+  { label: "Amparos", path: "/amparos", icon: <IconAmparos />, roles: ["admin", "gerente", "profesional"] },
   { label: "Gastos", path: "/gastos", icon: <IconGastos />, roles: ["admin", "gerente"] },
   { label: "Equipo", path: "/equipo", icon: <IconEquipo />, roles: ["admin"] },
   { label: "Institución", path: "/institucion", icon: <IconInstitucion />, roles: ["admin"] },
 ]
 
-export default function Navbar() {
-  const navigate = useNavigate()
+function SidebarContent({ onNavigate, dark, toggleDark, geriatrico, user, rol, logout, navigate }) {
   const location = useLocation()
-  const { geriatrico, logout, rol, user } = useAuth()
-  const [dark, setDark] = useState(() => localStorage.getItem("geri-theme") === "dark")
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const toggleDark = () => {
-    const next = !dark
-    setDark(next)
-    document.documentElement.classList.toggle("dark", next)
-    localStorage.setItem("geri-theme", next ? "dark" : "light")
-  }
-
   const visibleLinks = NAV_ITEMS.filter(item => item.roles.includes(rol))
-
   const initiales = (geriatrico?.nombre_director || user?.user_metadata?.full_name || "??")
     .split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase()
 
   return (
-    <Box
-      w="220px"
-      minH="100vh"
-      bg="bg.panel"
-      borderRight="1px solid"
-      borderColor="border.subtle"
-      display="flex"
-      flexDirection="column"
-      position="fixed"
-      top={0}
-      left={0}
-      zIndex={100}
-      boxShadow="1px 0 8px rgba(0,0,0,0.04)"
-    >
+    <>
       {/* Logo */}
       <Box px={5} py={5} borderBottom="1px solid" borderColor="border.subtle">
-        <Box display="flex" alignItems="center" gap={3} cursor="pointer" onClick={() => navigate("/")}>
+        <Box display="flex" alignItems="center" gap={3} cursor="pointer" onClick={() => onNavigate("/")}>
           <img src="/favicon.png" alt="Domus" style={{ width: 36, height: 36, borderRadius: 10 }} />
           <Box>
             <Text fontWeight="800" fontSize="sm" color="text.main" letterSpacing="tight" lineHeight="1.1">
@@ -153,13 +156,13 @@ export default function Navbar() {
       </Box>
 
       {/* Nav links */}
-      <Box flex={1} py={4} px={3}>
+      <Box flex={1} py={4} px={3} overflowY="auto">
         {visibleLinks.map(({ label, path, icon }) => {
-          const active = location.pathname === path
+          const active = path === "/" ? location.pathname === "/" : location.pathname.startsWith(path)
           return (
             <Box
               key={path}
-              onClick={() => navigate(path)}
+              onClick={() => onNavigate(path)}
               cursor="pointer"
               display="flex"
               alignItems="center"
@@ -168,11 +171,11 @@ export default function Navbar() {
               py={2.5}
               borderRadius="lg"
               mb={1}
-              bg={active ? "blue.600" : "transparent"}
+              bg={active ? "teal.600" : "transparent"}
               color={active ? "white" : "text.muted"}
               fontWeight={active ? "600" : "400"}
               fontSize="sm"
-              _hover={{ bg: active ? "blue.600" : "bg.hover", color: active ? "white" : "text.main" }}
+              _hover={{ bg: active ? "teal.600" : "bg.hover", color: active ? "white" : "text.main" }}
               transition="all 0.15s"
             >
               <Box opacity={active ? 1 : 0.7}>{icon}</Box>
@@ -182,19 +185,16 @@ export default function Navbar() {
         })}
       </Box>
 
-      {/* Bottom: dark mode + user */}
+      {/* Bottom: alertas + dark mode + user */}
       <Box px={3} py={4} borderTop="1px solid" borderColor="border.subtle">
-        {/* Dark mode toggle */}
+        <Box display="flex" alignItems="center" gap={3} px={3} py={1} mb={1}>
+          <AlertasPanel />
+          <Text fontSize="sm" color="text.muted">Alertas</Text>
+        </Box>
+
         <Box
-          display="flex"
-          alignItems="center"
-          gap={3}
-          px={3}
-          py={2}
-          borderRadius="lg"
-          cursor="pointer"
-          color="text.muted"
-          fontSize="sm"
+          display="flex" alignItems="center" gap={3} px={3} py={2}
+          borderRadius="lg" cursor="pointer" color="text.muted" fontSize="sm"
           _hover={{ bg: "bg.hover", color: "text.main" }}
           transition="all 0.15s"
           onClick={toggleDark}
@@ -204,31 +204,17 @@ export default function Navbar() {
           {dark ? "Modo claro" : "Modo oscuro"}
         </Box>
 
-        {/* User row */}
         <Box
-          display="flex"
-          alignItems="center"
-          gap={3}
-          px={3}
-          py={2}
-          borderRadius="lg"
-          cursor="pointer"
+          display="flex" alignItems="center" gap={3} px={3} py={2}
+          borderRadius="lg" cursor="pointer"
           _hover={{ bg: "bg.hover" }}
           transition="all 0.15s"
           onClick={async () => { await logout(); navigate("/login") }}
         >
           <Box
-            w="28px"
-            h="28px"
-            borderRadius="full"
-            bg="blue.600"
-            color="white"
-            fontSize="10px"
-            fontWeight="700"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            flexShrink={0}
+            w="28px" h="28px" borderRadius="full" bg="teal.600" color="white"
+            fontSize="10px" fontWeight="700" display="flex"
+            alignItems="center" justifyContent="center" flexShrink={0}
           >
             {initiales}
           </Box>
@@ -241,6 +227,101 @@ export default function Navbar() {
           <Box color="text.faint"><IconLogout /></Box>
         </Box>
       </Box>
-    </Box>
+    </>
+  )
+}
+
+export default function Navbar() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { geriatrico, logout, rol, user } = useAuth()
+  const [dark, setDark] = useState(() => localStorage.getItem("geri-theme") === "dark")
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [location.pathname])
+
+  const toggleDark = () => {
+    const next = !dark
+    setDark(next)
+    document.documentElement.classList.toggle("dark", next)
+    localStorage.setItem("geri-theme", next ? "dark" : "light")
+  }
+
+  const sharedProps = { dark, toggleDark, geriatrico, user, rol, logout, navigate }
+
+  return (
+    <>
+      {/* ── Desktop sidebar ─────────────────────────────────────────── */}
+      <Box
+        w="220px" minH="100vh"
+        bg="bg.panel"
+        borderRight="1px solid" borderColor="border.subtle"
+        display={{ base: "none", lg: "flex" }}
+        flexDirection="column"
+        position="fixed" top={0} left={0}
+        zIndex={100}
+        boxShadow="1px 0 8px rgba(0,0,0,0.04)"
+      >
+        <SidebarContent onNavigate={navigate} {...sharedProps} />
+      </Box>
+
+      {/* ── Mobile top bar ──────────────────────────────────────────── */}
+      <Box
+        display={{ base: "flex", lg: "none" }}
+        position="fixed" top={0} left={0} right={0}
+        h="56px" zIndex={100}
+        bg="bg.panel"
+        borderBottom="1px solid" borderColor="border.subtle"
+        px={4} alignItems="center" justifyContent="space-between"
+        boxShadow="0 1px 8px rgba(0,0,0,0.06)"
+      >
+        {/* Logo */}
+        <Box display="flex" alignItems="center" gap={2} cursor="pointer" onClick={() => navigate("/")}>
+          <img src="/favicon.png" alt="Domus" style={{ width: 28, height: 28, borderRadius: 8 }} />
+          <Text fontWeight="800" fontSize="sm" color="text.main">Domus</Text>
+        </Box>
+
+        {/* Derecha: alertas + hamburguesa */}
+        <Box display="flex" alignItems="center" gap={1}>
+          <AlertasPanel />
+          <Box
+            cursor="pointer" p={2} borderRadius="lg"
+            color="text.muted"
+            _hover={{ bg: "bg.hover", color: "text.main" }}
+            transition="all 0.15s"
+            onClick={() => setMobileOpen(v => !v)}
+          >
+            {mobileOpen ? <IconClose /> : <IconMenu />}
+          </Box>
+        </Box>
+      </Box>
+
+      {/* ── Mobile drawer ───────────────────────────────────────────── */}
+      {mobileOpen && (
+        <>
+          <Box
+            position="fixed" inset={0} zIndex={200}
+            bg="blackAlpha.600"
+            onClick={() => setMobileOpen(false)}
+          />
+          <Box
+            position="fixed" top={0} left={0} bottom={0}
+            w="260px" zIndex={201}
+            bg="bg.panel"
+            display="flex" flexDirection="column"
+            borderRight="1px solid" borderColor="border.subtle"
+            boxShadow="xl"
+          >
+            <SidebarContent onNavigate={(path) => { navigate(path); setMobileOpen(false) }} {...sharedProps} />
+          </Box>
+        </>
+      )}
+    </>
   )
 }
