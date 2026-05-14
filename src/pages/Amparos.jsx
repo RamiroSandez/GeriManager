@@ -106,7 +106,7 @@ export default function Amparos() {
   const fetchAmparos = async () => {
     const { data } = await supabase
       .from("amparos")
-      .select("*, Pacientes(id, Nombre_Completo, dni, Obra_social, fecha_nacimiento, diagnostico, motivo_ingreso, antecedentes, medicacion, numero_afiliado)")
+      .select("*, Pacientes(id, Nombre_Completo, dni, Obra_social, fecha_nacimiento, diagnostico, motivo_ingreso, antecedentes, numero_afiliado, paciente_medicamentos(dosis, frecuencia, via, medicamento:medicamento_id(nombre)))")
       .eq("geriatrico_id", geriatrico?.id)
       .order("created_at", { ascending: false })
     setAmparos(data || [])
@@ -116,7 +116,7 @@ export default function Amparos() {
   const fetchPacientes = async () => {
     const { data } = await supabase
       .from("Pacientes")
-      .select("id, Nombre_Completo, dni, Obra_social, fecha_nacimiento, diagnostico, motivo_ingreso, antecedentes, medicacion, numero_afiliado")
+      .select("id, Nombre_Completo, dni, Obra_social, fecha_nacimiento, diagnostico, motivo_ingreso, antecedentes, numero_afiliado, paciente_medicamentos(dosis, frecuencia, via, medicamento:medicamento_id(nombre))")
       .eq("geriatrico_id", geriatrico?.id)
       .order("Nombre_Completo")
     setPacientes(data || [])

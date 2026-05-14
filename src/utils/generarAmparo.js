@@ -79,29 +79,51 @@ const firmas = (geriatrico) => `
 // ─── Plantilla 1: Resumen de Historia Clínica ───────────────────────────────
 
 function templateResumenHistoriaClinica(p, geriatrico, fecha) {
-  const meds = p.medicacion?.length
-    ? p.medicacion.map(m => `<li>${m}</li>`).join("")
-    : "<li>Sin medicación registrada</li>"
+  const medLineas = p.medicacion?.length
+    ? p.medicacion.map(m => `<p style="margin:0 0 3px 0;">${m}</p>`).join("")
+    : "<p style=\"margin:0;\">Sin medicación registrada</p>"
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
-  <style>${estilosBase}</style></head><body><div class="pagina">
-  ${encabezado(geriatrico, "Resumen de Historia Clínica")}
-  <div class="fecha">Buenos Aires, ${fecha}</div>
-  ${datosPaciente(p)}
-  <div class="seccion-titulo">Motivo de Ingreso</div>
-  <div class="parrafo">${p.motivo_ingreso || "—"}</div>
-  <div class="seccion-titulo">Diagnóstico Actual</div>
-  <div class="parrafo">${p.diagnostico || "—"}</div>
-  <div class="seccion-titulo">Antecedentes Médicos</div>
-  <div class="parrafo">${p.antecedentes || "—"}</div>
-  <div class="seccion-titulo">Medicación en Curso</div>
-  <ul style="margin:0 0 16px 20px;line-height:1.8;font-size:12px;">${meds}</ul>
-  <div class="parrafo" style="margin-top:24px;">
-    El presente resumen ha sido elaborado en base a la ficha clínica del paciente obrante en el establecimiento,
-    avalando la necesidad de internación y tratamiento geriátrico continuo.
-  </div>
-  ${firmas(geriatrico)}
-  </div></body></html>`
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+    body { font-family: Arial, sans-serif; font-size: 11pt; margin: 50px 60px; color: #000; line-height: 1.5; }
+    .titulo { text-align: center; font-weight: bold; font-style: italic; text-decoration: underline; font-size: 13pt; margin-bottom: 20px; }
+    p { margin: 0 0 6px 0; }
+    b { font-weight: bold; }
+    .justificado { text-align: justify; }
+    .indentado { margin-left: 36px; text-align: justify; }
+    .firma { margin-top: 48px; }
+  </style></head><body>
+    <div class="titulo">Residencia Geriátrica "Del Este"</div>
+    <p><b>Fecha:</b> ${fecha}</p>
+    <p>&nbsp;</p>
+    <p><b>RESUMEN DE HISTORIA CLÍNICA</b></p>
+    <p>&nbsp;</p>
+    <p><b>Datos Paciente</b></p>
+    <p>&nbsp;</p>
+    <p><b>Nombre y apellido:</b> ${p.nombre}</p>
+    <p><b>DNI:</b> ${p.dni}</p>
+    <p><b>Edad:</b> ${p.edad ? p.edad + " años" : "—"}</p>
+    <p><b>Fecha de Nacimiento:</b> ${p.fecha_nacimiento ? new Date(p.fecha_nacimiento + "T12:00:00").toLocaleDateString("es-AR") : "—"}</p>
+    <p><b>Obra Social:</b> ${p.obra_social || "—"}</p>
+    <p><b>Motivo de ingreso:</b> ${p.motivo_ingreso || "—"}</p>
+    <p>&nbsp;</p>
+    <p><b>Diagnóstico actual: <u>${p.diagnostico || "—"}</u>.</b></p>
+    <p>&nbsp;</p>
+    <p class="justificado"><b>Antecedentes:</b> ${p.antecedentes || "—"}.</p>
+    <p class="justificado"><b>Resumen de evolución:</b> Persona con buena adaptación. Actualmente el establecimiento es apropiado al estado de evolución de la patología del paciente. El estado del mismo amerita asistencia y cuidado permanente por 3eros para la realización de las AVD básicas (alimentación, aseo, medicación).</p>
+    <p>&nbsp;</p>
+    <p><b>Indicaciones médicas:</b></p>
+    <p class="indentado">Mantener régimen de vida y controles médicos. Limitar novedades y perturbaciones en la vida diaria porque se asusta con facilidad y puede desembocar en brotes. Se indica continuar internación en la misma institución y sostener el tratamiento, para su adaptación e integración al medio en que se encuentra. Mantener atención exclusiva profesional las 24 hs. Se indica continuar con actividades de centro de día para estimulación. Se contraindica la interrupción del tratamiento traslado por riesgo para la salud y afectación a nivel psíquico y cognitivo.</p>
+    <p>&nbsp;</p>
+    <p><b>Medicación:</b></p>
+    ${medLineas}
+    <p>&nbsp;</p>
+    <p><b>Prestaciones requeridas:</b></p>
+    <p class="justificado">Requiere prestaciones de Hogar permanente Categoría A con centro de día. Servicio de Medicina Clínica con controles de rutina semanal y resumen de historia clínica por semana. Enfermería las 24hs. Médico, Nutricionista. Hotelería (lavado, planchado de ropa y ropa de cama). Sesiones de Psicología 1 vez por semana. Sesiones de Musicoterapia. Sesiones de Recreo terapia.</p>
+    <div class="firma">
+      <p><b><u>DR. OMAR M. MONTES</u></b></p>
+      <p>M.N 54889</p>
+    </div>
+  </body></html>`
 }
 
 // ─── Plantilla 2: Presupuesto ────────────────────────────────────────────────
@@ -246,11 +268,21 @@ export function generarAmparo(tipo, paciente, geriatrico, extras = {}) {
     motivo_ingreso: paciente.motivo_ingreso || "",
     antecedentes: paciente.antecedentes || "",
     edad,
-    medicacion: Array.isArray(paciente.medicacion)
-      ? paciente.medicacion
-      : typeof paciente.medicacion === "string"
-        ? paciente.medicacion.split("\n").filter(m => m.trim())
-        : [],
+    medicacion: (() => {
+      const relacional = paciente.paciente_medicamentos
+      if (Array.isArray(relacional) && relacional.length > 0) {
+        return relacional.map(pm => {
+          const partes = [pm.medicamento?.nombre || ""]
+          if (pm.dosis) partes.push(pm.dosis)
+          if (pm.frecuencia) partes.push(pm.frecuencia)
+          if (pm.via) partes.push(`vía ${pm.via}`)
+          return partes.filter(Boolean).join(" - ")
+        })
+      }
+      if (Array.isArray(paciente.medicacion)) return paciente.medicacion
+      if (typeof paciente.medicacion === "string") return paciente.medicacion.split("\n").filter(m => m.trim())
+      return []
+    })(),
   }
 
   const g = {
