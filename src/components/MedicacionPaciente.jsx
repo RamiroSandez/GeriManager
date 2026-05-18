@@ -127,7 +127,7 @@ export default function MedicacionPaciente({ pacienteId }) {
                       borderRadius="md"
                       border="1px solid"
                       borderColor={activo ? "teal.500" : "border.subtle"}
-                      bg={activo ? "teal.50" : "bg.muted"}
+                      bg={activo ? "teal.500/10" : "bg.muted"}
                       overflow="hidden"
                       transition="all 0.15s"
                     >
