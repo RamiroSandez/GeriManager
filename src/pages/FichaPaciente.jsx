@@ -168,9 +168,18 @@ export default function FichaPaciente() {
       logError("guardar_datos_paciente", error.message, { geriatricoId: geriatrico?.id, userId: user?.id })
       toaster.create({ title: "Error al guardar", description: error.message, type: "error", duration: 4000 })
     } else {
+      const LABELS = {
+        Nombre_Completo: "Nombre", dni: "DNI", Obra_social: "Obra social",
+        numero_afiliado: "N° afiliado", fecha_nacimiento: "Fecha de nacimiento",
+        diagnostico: "Diagnóstico", motivo_ingreso: "Motivo de ingreso",
+        antecedentes: "Antecedentes", nombre_contacto: "Contacto", telefono_contacto: "Tel. contacto",
+      }
+      const modificados = Object.keys(LABELS).filter(k => (form[k] || "") !== (paciente[k] || ""))
       const descripcion = estadoCambio
         ? `Estado cambiado a: ${ESTADOS_PACIENTE[estadoNuevo]?.label || estadoNuevo}`
-        : "Datos del paciente actualizados"
+        : modificados.length > 0
+          ? `Campos modificados: ${modificados.map(k => LABELS[k]).join(", ")}`
+          : "Datos guardados"
       await registrarEvento(descripcion)
       toaster.create({ title: "Datos actualizados", type: "success", duration: 3000 })
       await fetchPaciente()
@@ -332,7 +341,7 @@ export default function FichaPaciente() {
         <Tabs.Content value="medicacion">
           <Card.Root borderRadius="xl" boxShadow="md">
             <Card.Body>
-              <MedicacionPaciente pacienteId={Number(id)} />
+              <MedicacionPaciente pacienteId={Number(id)} registrarEvento={registrarEvento} onCambio={fetchEventos} />
             </Card.Body>
           </Card.Root>
         </Tabs.Content>

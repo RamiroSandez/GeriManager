@@ -6,7 +6,7 @@ import {
 } from "@chakra-ui/react"
 import { toaster } from "./toaster"
 
-export default function MedicacionPaciente({ pacienteId }) {
+export default function MedicacionPaciente({ pacienteId, registrarEvento, onCambio }) {
   const { geriatrico } = useAuth()
   const [asignadas, setAsignadas] = useState([])
   const [catalogo, setCatalogo] = useState([])
@@ -73,7 +73,10 @@ export default function MedicacionPaciente({ pacienteId }) {
     if (error) {
       toaster.create({ title: "Error al asignar", description: error.message, type: "error", duration: 4000 })
     } else {
+      const nombres = idsSeleccionados.map(mid => catalogo.find(m => m.id === mid)?.nombre).filter(Boolean)
       toaster.create({ title: `${idsSeleccionados.length} medicamento${idsSeleccionados.length > 1 ? "s asignados" : " asignado"}`, type: "success", duration: 2000 })
+      if (registrarEvento) await registrarEvento(`Medicación asignada: ${nombres.join(", ")}`)
+      if (onCambio) onCambio()
       setSeleccionados({})
       setMostrarForm(false)
       fetchAsignadas()
@@ -81,10 +84,13 @@ export default function MedicacionPaciente({ pacienteId }) {
   }
 
   const quitar = async (id) => {
+    const med = asignadas.find(a => a.id === id)
     const { error } = await supabase.from("paciente_medicamentos").delete().eq("id", id)
     if (!error) {
-      fetchAsignadas()
       toaster.create({ title: "Medicamento removido", type: "success", duration: 2000 })
+      if (registrarEvento) await registrarEvento(`Medicación removida: ${med?.medicamento?.nombre || ""}`)
+      if (onCambio) onCambio()
+      fetchAsignadas()
     }
   }
 
