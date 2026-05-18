@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { supabase } from "../services/supabase"
 import { useAuth } from "../contexts/AuthContext"
 import {
-  Box, Button, HStack, Stack, Text,
+  Box, Button, HStack, Input, Stack, Text,
 } from "@chakra-ui/react"
 import { toaster } from "./toaster"
 
@@ -10,7 +10,7 @@ export default function MedicacionPaciente({ pacienteId }) {
   const { geriatrico } = useAuth()
   const [asignadas, setAsignadas] = useState([])
   const [catalogo, setCatalogo] = useState([])
-  const [seleccionados, setSeleccionados] = useState([])
+  const [seleccionados, setSeleccionados] = useState({}) // { [medId]: { frecuencia } }
   const [mostrarForm, setMostrarForm] = useState(false)
   const [guardando, setGuardando] = useState(false)
 
@@ -38,25 +38,34 @@ export default function MedicacionPaciente({ pacienteId }) {
   }, [pacienteId, geriatrico?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const disponibles = catalogo.filter(m => !asignadas.some(a => a.medicamento_id === m.id))
+  const idsSeleccionados = Object.keys(seleccionados).map(Number)
 
   const toggleSeleccion = (id) => {
-    setSeleccionados(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    )
+    setSeleccionados(prev => {
+      if (prev[id] !== undefined) {
+        const { [id]: _, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [id]: { frecuencia: "" } }
+    })
   }
 
+  const setFrecuencia = (id, val) =>
+    setSeleccionados(prev => ({ ...prev, [id]: { ...prev[id], frecuencia: val } }))
+
   const guardar = async () => {
-    if (seleccionados.length === 0) {
+    if (idsSeleccionados.length === 0) {
       toaster.create({ title: "Seleccioná al menos un medicamento", type: "warning", duration: 3000 })
       return
     }
     setGuardando(true)
-    const filas = seleccionados.map(medId => {
+    const filas = idsSeleccionados.map(medId => {
       const med = catalogo.find(m => m.id === medId)
       return {
         paciente_id: pacienteId,
         medicamento_id: medId,
         dosis: med?.dosis_estandar || null,
+        frecuencia: seleccionados[medId]?.frecuencia || null,
       }
     })
     const { error } = await supabase.from("paciente_medicamentos").insert(filas)
@@ -64,8 +73,8 @@ export default function MedicacionPaciente({ pacienteId }) {
     if (error) {
       toaster.create({ title: "Error al asignar", description: error.message, type: "error", duration: 4000 })
     } else {
-      toaster.create({ title: `${seleccionados.length} medicamento${seleccionados.length > 1 ? "s asignados" : " asignado"}`, type: "success", duration: 2000 })
-      setSeleccionados([])
+      toaster.create({ title: `${idsSeleccionados.length} medicamento${idsSeleccionados.length > 1 ? "s asignados" : " asignado"}`, type: "success", duration: 2000 })
+      setSeleccionados({})
       setMostrarForm(false)
       fetchAsignadas()
     }
@@ -80,7 +89,7 @@ export default function MedicacionPaciente({ pacienteId }) {
   }
 
   const abrirForm = () => {
-    setSeleccionados([])
+    setSeleccionados({})
     setMostrarForm(true)
   }
 
@@ -111,21 +120,23 @@ export default function MedicacionPaciente({ pacienteId }) {
               <Text fontSize="xs" color="text.muted">Seleccioná uno o varios medicamentos para agregar:</Text>
               <Stack gap={1}>
                 {disponibles.map(m => {
-                  const activo = seleccionados.includes(m.id)
+                  const activo = seleccionados[m.id] !== undefined
                   return (
                     <Box
                       key={m.id}
-                      px={3} py={2}
                       borderRadius="md"
                       border="1px solid"
                       borderColor={activo ? "teal.500" : "border.subtle"}
                       bg={activo ? "teal.50" : "bg.muted"}
-                      cursor="pointer"
-                      onClick={() => toggleSeleccion(m.id)}
-                      _hover={{ borderColor: "teal.400" }}
+                      overflow="hidden"
                       transition="all 0.15s"
                     >
-                      <HStack justify="space-between">
+                      <HStack
+                        px={3} py={2} cursor="pointer"
+                        onClick={() => toggleSeleccion(m.id)}
+                        _hover={{ borderColor: "teal.400" }}
+                        justify="space-between"
+                      >
                         <Box>
                           <Text fontSize="sm" fontWeight="600" color="text.main">{m.nombre}</Text>
                           {m.dosis_estandar && (
@@ -143,15 +154,26 @@ export default function MedicacionPaciente({ pacienteId }) {
                           {activo ? "✓" : ""}
                         </Box>
                       </HStack>
+                      {activo && (
+                        <Box px={3} pb={2} onClick={e => e.stopPropagation()}>
+                          <Input
+                            size="xs"
+                            placeholder="Frecuencia (ej: Cada 8hs, Una vez al día)"
+                            value={seleccionados[m.id]?.frecuencia || ""}
+                            onChange={e => setFrecuencia(m.id, e.target.value)}
+                            bg="bg.panel"
+                          />
+                        </Box>
+                      )}
                     </Box>
                   )
                 })}
               </Stack>
               <Button
                 colorPalette="teal" size="sm" onClick={guardar} loading={guardando}
-                disabled={seleccionados.length === 0}
+                disabled={idsSeleccionados.length === 0}
               >
-                Agregar {seleccionados.length > 0 ? `${seleccionados.length} medicamento${seleccionados.length > 1 ? "s" : ""}` : ""}
+                Agregar {idsSeleccionados.length > 0 ? `${idsSeleccionados.length} medicamento${idsSeleccionados.length > 1 ? "s" : ""}` : ""}
               </Button>
             </Stack>
           )}
