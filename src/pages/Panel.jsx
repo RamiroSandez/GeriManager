@@ -6,7 +6,7 @@ import {
   Box, Button, Card, Grid, Heading, HStack, Spinner, Stack, Text,
 } from "@chakra-ui/react"
 import { Toaster, toaster } from "../components/toaster"
-import { cargarDemoData } from "../utils/demoData"
+import { cargarDemoData, limpiarDemoData } from "../utils/demoData"
 
 function KpiCard({ valor, label, color, sub, icono, onClick }) {
   return (
@@ -67,9 +67,11 @@ export default function Panel() {
   const navigate = useNavigate()
   const [cargando, setCargando] = useState(true)
   const [cargandoDemo, setCargandoDemo] = useState(false)
+  const [limpiandoDemo, setLimpiandoDemo] = useState(false)
   const [onboardingDismissed, setOnboardingDismissed] = useState(
     () => localStorage.getItem(`geri-onboarding-${geriatrico?.id}`) === "done"
   )
+  const demoActivo = localStorage.getItem(`geri-demo-${geriatrico?.id}`) === "loaded"
   const [kpis, setKpis] = useState({
     totalPacientes: 0, activos: 0, bajas: 0,
     gastosMes: 0, alertasSignos: 0, medPendientes: 0, cumpleHoy: [],
@@ -170,6 +172,18 @@ export default function Panel() {
     }
   }
 
+  const handleLimpiarDemo = async () => {
+    setLimpiandoDemo(true)
+    const { error } = await limpiarDemoData(geriatrico.id)
+    setLimpiandoDemo(false)
+    if (error) {
+      toaster.create({ title: "Error al limpiar", description: error.message, type: "error", duration: 4000 })
+    } else {
+      toaster.create({ title: "Datos de demo eliminados", description: "El sistema quedó limpio para empezar", type: "success", duration: 3000 })
+      fetchData()
+    }
+  }
+
   const hora = new Date().getHours()
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches"
   const mes = new Date().toLocaleString("es-AR", { month: "long", year: "numeric" })
@@ -200,7 +214,7 @@ export default function Panel() {
       </Box>
 
       {/* Onboarding — visible mientras no tengan pacientes o no lo descarten */}
-      {!cargando && !onboardingDismissed && kpis.totalPacientes === 0 && (
+      {!cargando && !onboardingDismissed && (kpis.totalPacientes === 0 || demoActivo) && (
         <Card.Root
           borderRadius="xl" boxShadow="md" mb={6}
           border="1px solid" borderColor="teal.500"
@@ -234,12 +248,23 @@ export default function Panel() {
               <Text fontSize="xs" color="text.muted" mb={3}>
                 ¿Querés ver cómo funciona la app con datos reales de ejemplo?
               </Text>
-              <Button
-                size="sm" colorPalette="teal" variant="outline"
-                onClick={handleCargarDemo} loading={cargandoDemo}
-              >
-                Cargar datos de demo
-              </Button>
+              <HStack gap={3}>
+                <Button
+                  size="sm" colorPalette="teal" variant="outline"
+                  onClick={handleCargarDemo} loading={cargandoDemo}
+                  disabled={demoActivo}
+                >
+                  Cargar datos de demo
+                </Button>
+                {demoActivo && (
+                  <Button
+                    size="sm" colorPalette="red" variant="ghost"
+                    onClick={handleLimpiarDemo} loading={limpiandoDemo}
+                  >
+                    Limpiar demo
+                  </Button>
+                )}
+              </HStack>
             </Box>
           </Card.Body>
         </Card.Root>

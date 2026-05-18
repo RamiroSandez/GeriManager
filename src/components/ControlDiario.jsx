@@ -338,7 +338,7 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
                       gap="2px"
                       borderBottom="1px solid"
                       borderColor="border.subtle"
-                      bg={i % 2 === 0 ? "white" : "gray.50"}
+                      bg={i % 2 === 0 ? "bg.panel" : "bg.muted"}
                     >
                       {MEALS.map(meal => (
                         <Box
@@ -346,7 +346,7 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
                           w="9px"
                           h="9px"
                           borderRadius="2px"
-                          bg={r?.[meal.key] ? "teal.500" : "gray.200"}
+                          bg={r?.[meal.key] ? "teal.500" : "border.subtle"}
                           title={meal.full}
                           flexShrink={0}
                         />
@@ -356,7 +356,7 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
                 })}
 
                 {/* Signos vitales section header spacer */}
-                <Box h={SEC_H} borderBottom="1px solid" borderColor="border.subtle" bg="green.50" />
+                <Box h={SEC_H} borderBottom="1px solid" borderColor="border.subtle" bg="bg.muted" />
 
                 {/* Vital sign rows */}
                 {VITALS.map((v, i) => (
@@ -368,9 +368,9 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
                     justifyContent="center"
                     borderBottom={i < VITALS.length - 1 ? "1px solid" : "none"}
                     borderColor="border.subtle"
-                    bg={i % 2 === 0 ? "white" : "gray.50"}
+                    bg={i % 2 === 0 ? "bg.panel" : "bg.muted"}
                   >
-                    <Text fontSize="10px" fontWeight="500" color={signo?.[v.key] ? "text.main" : "gray.300"}>
+                    <Text fontSize="10px" fontWeight="500" color={signo?.[v.key] ? "text.main" : "text.faint"}>
                       {signo?.[v.key] || "·"}
                     </Text>
                   </Box>
@@ -390,7 +390,7 @@ export default function ControlDiario({ pacienteId, pacienteNombre }) {
           </HStack>
         ))}
         <HStack gap={1}>
-          <Box w="12px" h="12px" borderRadius="sm" bg="green.100" border="1px solid" borderColor="green.300" />
+          <Box w="12px" h="12px" borderRadius="sm" bg="teal.500/10" border="1px solid" borderColor="teal.500/40" />
           <Text fontSize="xs" color="text.faint">Día con registro</Text>
         </HStack>
       </HStack>

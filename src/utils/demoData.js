@@ -88,15 +88,15 @@ const MEDICAMENTOS = [
 ]
 
 const GASTOS = [
-  { categoria: "medicamentos", descripcion: "Compra mensual de medicamentos", monto: 85000, proveedor: "Farmacia del Centro", fecha: fechaMes("actual", 2) },
-  { categoria: "alimentacion", descripcion: "Compras supermercado semanal", monto: 42000, proveedor: "Carrefour", fecha: fechaMes("actual", 5) },
-  { categoria: "higiene", descripcion: "Pañales y artículos de higiene personal", monto: 28000, proveedor: "Distribuidora Salud", fecha: fechaMes("actual", 8) },
-  { categoria: "personal", descripcion: "Sueldo enfermera turno noche", monto: 120000, proveedor: null, fecha: fechaMes("actual", 10) },
-  { categoria: "medicamentos", descripcion: "Compra mensual de medicamentos", monto: 78000, proveedor: "Farmacia del Centro", fecha: fechaMes("anterior", 3) },
-  { categoria: "alimentacion", descripcion: "Compras supermercado semanal", monto: 38000, proveedor: "Carrefour", fecha: fechaMes("anterior", 10) },
-  { categoria: "mantenimiento", descripcion: "Reparación sistema de calefacción", monto: 35000, proveedor: "Técnico Martínez", fecha: fechaMes("anterior", 15) },
-  { categoria: "personal", descripcion: "Sueldo enfermera turno noche", monto: 115000, proveedor: null, fecha: fechaMes("anterior", 20) },
-  { categoria: "higiene", descripcion: "Pañales y artículos de higiene personal", monto: 25000, proveedor: "Distribuidora Salud", fecha: fechaMes("anterior", 28) },
+  { categoria: "medicamentos", descripcion: "Compra mensual de medicamentos", monto: 850000, proveedor: "Farmacia del Centro", fecha: fechaMes("actual", 2) },
+  { categoria: "alimentacion", descripcion: "Compras supermercado semanal", monto: 420000, proveedor: "Carrefour", fecha: fechaMes("actual", 5) },
+  { categoria: "higiene", descripcion: "Pañales y artículos de higiene personal", monto: 280000, proveedor: "Distribuidora Salud", fecha: fechaMes("actual", 8) },
+  { categoria: "personal", descripcion: "Sueldo enfermera turno noche", monto: 1200000, proveedor: null, fecha: fechaMes("actual", 10) },
+  { categoria: "medicamentos", descripcion: "Compra mensual de medicamentos", monto: 780000, proveedor: "Farmacia del Centro", fecha: fechaMes("anterior", 3) },
+  { categoria: "alimentacion", descripcion: "Compras supermercado semanal", monto: 380000, proveedor: "Carrefour", fecha: fechaMes("anterior", 10) },
+  { categoria: "mantenimiento", descripcion: "Reparación sistema de calefacción", monto: 350000, proveedor: "Técnico Martínez", fecha: fechaMes("anterior", 15) },
+  { categoria: "personal", descripcion: "Sueldo enfermera turno noche", monto: 1150000, proveedor: null, fecha: fechaMes("anterior", 20) },
+  { categoria: "higiene", descripcion: "Pañales y artículos de higiene personal", monto: 250000, proveedor: "Distribuidora Salud", fecha: fechaMes("anterior", 28) },
 ]
 
 // Signos vitales para los últimos 7 días — algunos fuera de rango para mostrar alertas
@@ -171,5 +171,35 @@ export async function cargarDemoData(geriatricoId) {
     .insert(GASTOS.map(g => ({ ...g, geriatrico_id: geriatricoId })))
   if (errGastos) return { error: errGastos }
 
+  localStorage.setItem(`geri-demo-${geriatricoId}`, "loaded")
+  return { error: null }
+}
+
+export async function limpiarDemoData(geriatricoId) {
+  const { data: pacs } = await supabase
+    .from("Pacientes")
+    .select("id")
+    .eq("geriatrico_id", geriatricoId)
+
+  const pacIds = (pacs || []).map(p => p.id)
+
+  if (pacIds.length > 0) {
+    await Promise.all([
+      supabase.from("registro_signos_vitales").delete().in("paciente_id", pacIds),
+      supabase.from("registro_medicacion_diaria").delete().in("paciente_id", pacIds),
+      supabase.from("paciente_medicamentos").delete().in("paciente_id", pacIds),
+      supabase.from("amparos").delete().in("paciente_id", pacIds),
+      supabase.from("eventos").delete().in("paciente_id", pacIds),
+      supabase.from("documentos").delete().in("paciente_id", pacIds),
+    ])
+    await supabase.from("Pacientes").delete().eq("geriatrico_id", geriatricoId)
+  }
+
+  await Promise.all([
+    supabase.from("medicamentos").delete().eq("geriatrico_id", geriatricoId),
+    supabase.from("gastos").delete().eq("geriatrico_id", geriatricoId),
+  ])
+
+  localStorage.removeItem(`geri-demo-${geriatricoId}`)
   return { error: null }
 }
