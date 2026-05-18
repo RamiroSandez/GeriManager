@@ -1,19 +1,16 @@
-﻿import { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { supabase } from "../services/supabase"
 import { useAuth } from "../contexts/AuthContext"
 import {
-  Box, Button, FieldLabel, FieldRoot,
-  Grid, HStack, Input, NativeSelect, Stack, Text,
+  Box, Button, HStack, Stack, Text,
 } from "@chakra-ui/react"
 import { toaster } from "./toaster"
-
-const FORM_INICIAL = { medicamento_id: "", dosis: "", frecuencia: "", via: "", observaciones: "" }
 
 export default function MedicacionPaciente({ pacienteId }) {
   const { geriatrico } = useAuth()
   const [asignadas, setAsignadas] = useState([])
   const [catalogo, setCatalogo] = useState([])
-  const [form, setForm] = useState(FORM_INICIAL)
+  const [seleccionados, setSeleccionados] = useState([])
   const [mostrarForm, setMostrarForm] = useState(false)
   const [guardando, setGuardando] = useState(false)
 
@@ -40,28 +37,35 @@ export default function MedicacionPaciente({ pacienteId }) {
     if (geriatrico?.id) fetchCatalogo()
   }, [pacienteId, geriatrico?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
+  const disponibles = catalogo.filter(m => !asignadas.some(a => a.medicamento_id === m.id))
+
+  const toggleSeleccion = (id) => {
+    setSeleccionados(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
 
   const guardar = async () => {
-    if (!form.medicamento_id) {
-      toaster.create({ title: "Seleccioná un medicamento", type: "error", duration: 3000 })
+    if (seleccionados.length === 0) {
+      toaster.create({ title: "Seleccioná al menos un medicamento", type: "warning", duration: 3000 })
       return
     }
     setGuardando(true)
-    const { error } = await supabase.from("paciente_medicamentos").insert([{
-      paciente_id: pacienteId,
-      medicamento_id: Number(form.medicamento_id),
-      dosis: form.dosis || null,
-      frecuencia: form.frecuencia || null,
-      via: form.via || null,
-      observaciones: form.observaciones || null,
-    }])
+    const filas = seleccionados.map(medId => {
+      const med = catalogo.find(m => m.id === medId)
+      return {
+        paciente_id: pacienteId,
+        medicamento_id: medId,
+        dosis: med?.dosis_estandar || null,
+      }
+    })
+    const { error } = await supabase.from("paciente_medicamentos").insert(filas)
     setGuardando(false)
     if (error) {
       toaster.create({ title: "Error al asignar", description: error.message, type: "error", duration: 4000 })
     } else {
-      toaster.create({ title: "Medicamento asignado", type: "success", duration: 2000 })
-      setForm(FORM_INICIAL)
+      toaster.create({ title: `${seleccionados.length} medicamento${seleccionados.length > 1 ? "s asignados" : " asignado"}`, type: "success", duration: 2000 })
+      setSeleccionados([])
       setMostrarForm(false)
       fetchAsignadas()
     }
@@ -75,123 +79,97 @@ export default function MedicacionPaciente({ pacienteId }) {
     }
   }
 
+  const abrirForm = () => {
+    setSeleccionados([])
+    setMostrarForm(true)
+  }
+
   return (
     <Stack gap={4}>
       <HStack justify="space-between">
         <Text fontWeight="semibold" fontSize="sm" color="text.main">Medicación activa</Text>
-        <Button
-          size="sm"
-          colorPalette="teal"
-          variant="outline"
-          onClick={() => { setMostrarForm(!mostrarForm); setForm(FORM_INICIAL) }}
-        >
-          {mostrarForm ? "Cancelar" : "+ Asignar medicamento"}
-        </Button>
+        {!mostrarForm && disponibles.length > 0 && (
+          <Button size="sm" colorPalette="teal" variant="outline" onClick={abrirForm}>
+            + Asignar medicamento
+          </Button>
+        )}
+        {mostrarForm && (
+          <Button size="sm" variant="ghost" colorPalette="gray" onClick={() => setMostrarForm(false)}>
+            Cancelar
+          </Button>
+        )}
       </HStack>
 
       {mostrarForm && (
-        <Box
-          border="1px solid"
-          borderColor="border.subtle"
-          borderRadius="lg"
-          p={4}
-          bg="bg.panel"
-        >
-          {catalogo.length === 0 ? (
+        <Box border="1px solid" borderColor="border.subtle" borderRadius="lg" p={4} bg="bg.panel">
+          {disponibles.length === 0 ? (
             <Text fontSize="sm" color="text.faint">
-              No hay medicamentos en el catálogo. Primero cargalos en la sección{" "}
-              <a href="/medicamentos" style={{ color: "#3B82F6", textDecoration: "underline" }}>
-                Medicamentos
-              </a>.
+              Todos los medicamentos del catálogo ya están asignados.
             </Text>
           ) : (
-            <>
-              <Grid templateColumns={{ base: "1fr", md: "1fr 1fr 1fr" }} gap={3} mb={3}>
-                <FieldRoot required>
-                  <FieldLabel fontSize="sm">Medicamento *</FieldLabel>
-                  <NativeSelect.Root>
-                    <NativeSelect.Field
-                      value={form.medicamento_id}
-                      onChange={e => set("medicamento_id", e.target.value)}
-                      bg="bg.panel"
+            <Stack gap={3}>
+              <Text fontSize="xs" color="text.muted">Seleccioná uno o varios medicamentos para agregar:</Text>
+              <Stack gap={1}>
+                {disponibles.map(m => {
+                  const activo = seleccionados.includes(m.id)
+                  return (
+                    <Box
+                      key={m.id}
+                      px={3} py={2}
+                      borderRadius="md"
+                      border="1px solid"
+                      borderColor={activo ? "teal.500" : "border.subtle"}
+                      bg={activo ? "teal.50" : "bg.muted"}
+                      cursor="pointer"
+                      onClick={() => toggleSeleccion(m.id)}
+                      _hover={{ borderColor: "teal.400" }}
+                      transition="all 0.15s"
                     >
-                      <option value="">Seleccionar...</option>
-                      {catalogo.map(m => (
-                        <option key={m.id} value={m.id}>
-                          {m.nombre}{m.dosis_estandar ? ` — ${m.dosis_estandar}` : ""}
-                        </option>
-                      ))}
-                    </NativeSelect.Field>
-                    <NativeSelect.Indicator />
-                  </NativeSelect.Root>
-                </FieldRoot>
-                <FieldRoot>
-                  <FieldLabel fontSize="sm">Dosis</FieldLabel>
-                  <Input
-                    value={form.dosis}
-                    onChange={e => set("dosis", e.target.value)}
-                    placeholder="Ej: 1 comprimido"
-                    size="sm"
-                  />
-                </FieldRoot>
-                <FieldRoot>
-                  <FieldLabel fontSize="sm">Frecuencia</FieldLabel>
-                  <Input
-                    value={form.frecuencia}
-                    onChange={e => set("frecuencia", e.target.value)}
-                    placeholder="Ej: Cada 8hs"
-                    size="sm"
-                  />
-                </FieldRoot>
-                <FieldRoot>
-                  <FieldLabel fontSize="sm">Vía</FieldLabel>
-                  <Input
-                    value={form.via}
-                    onChange={e => set("via", e.target.value)}
-                    placeholder="Ej: Oral"
-                    size="sm"
-                  />
-                </FieldRoot>
-                <FieldRoot>
-                  <FieldLabel fontSize="sm">Observaciones</FieldLabel>
-                  <Input
-                    value={form.observaciones}
-                    onChange={e => set("observaciones", e.target.value)}
-                    placeholder="Opcional"
-                    size="sm"
-                  />
-                </FieldRoot>
-              </Grid>
-              <Button colorPalette="teal" size="sm" onClick={guardar} loading={guardando}>
-                Asignar
+                      <HStack justify="space-between">
+                        <Box>
+                          <Text fontSize="sm" fontWeight="600" color="text.main">{m.nombre}</Text>
+                          {m.dosis_estandar && (
+                            <Text fontSize="xs" color="text.muted">{m.dosis_estandar}</Text>
+                          )}
+                        </Box>
+                        <Box
+                          w="18px" h="18px" borderRadius="full" flexShrink={0}
+                          bg={activo ? "teal.500" : "bg.panel"}
+                          border="2px solid"
+                          borderColor={activo ? "teal.500" : "border.subtle"}
+                          display="flex" alignItems="center" justifyContent="center"
+                          fontSize="10px" color="white" fontWeight="700"
+                        >
+                          {activo ? "✓" : ""}
+                        </Box>
+                      </HStack>
+                    </Box>
+                  )
+                })}
+              </Stack>
+              <Button
+                colorPalette="teal" size="sm" onClick={guardar} loading={guardando}
+                disabled={seleccionados.length === 0}
+              >
+                Agregar {seleccionados.length > 0 ? `${seleccionados.length} medicamento${seleccionados.length > 1 ? "s" : ""}` : ""}
               </Button>
-            </>
+            </Stack>
           )}
         </Box>
       )}
 
       {asignadas.length === 0 ? (
-        <Box
-          textAlign="center"
-          py={10}
-          border="1px dashed"
-          borderColor="border.subtle"
-          borderRadius="lg"
-        >
+        <Box textAlign="center" py={10} border="1px dashed" borderColor="border.subtle" borderRadius="lg">
           <Text color="text.faint" fontSize="sm">No hay medicamentos asignados</Text>
         </Box>
       ) : (
         <Stack gap={0}>
-          {/* Header */}
           <Box
             display="grid"
             gridTemplateColumns="1.5fr 120px 150px 100px 1fr 60px"
-            px={4}
-            py={2}
-            borderBottom="1px solid"
-            borderColor="border.subtle"
-            bg="bg.muted"
-            borderRadius="lg"
+            px={4} py={2}
+            borderBottom="1px solid" borderColor="border.subtle"
+            bg="bg.muted" borderRadius="lg"
           >
             {["Medicamento", "Dosis", "Frecuencia", "Vía", "Observaciones", ""].map((h, i) => (
               <Text key={i} fontSize="xs" fontWeight="600" color="text.faint" textTransform="uppercase" letterSpacing="wider">
@@ -199,14 +177,12 @@ export default function MedicacionPaciente({ pacienteId }) {
               </Text>
             ))}
           </Box>
-
           {asignadas.map((a, i) => (
             <Box
               key={a.id}
               display="grid"
               gridTemplateColumns="1.5fr 120px 150px 100px 1fr 60px"
-              px={4}
-              py={3}
+              px={4} py={3}
               borderBottom={i < asignadas.length - 1 ? "1px solid" : "none"}
               borderColor="border.subtle"
               alignItems="center"
