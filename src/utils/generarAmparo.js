@@ -145,10 +145,10 @@ const htmlHead = () =>
 
 const htmlFoot = () => `</div></body></html>`
 
-const encabezado = (geriatrico, titulo) => `
+const encabezado = (geriatrico, titulo, mostrarDirector = true) => `
   <div class="hdr">
     <div class="hdr-nombre">${geriatrico.nombre || "Residencia Geriátrica"}</div>
-    ${geriatrico.nombre_director ? `<div class="hdr-director">Director/a: ${geriatrico.nombre_director}</div>` : ""}
+    ${mostrarDirector && geriatrico.nombre_director ? `<div class="hdr-director">Director/a: ${geriatrico.nombre_director}</div>` : ""}
     <div class="hdr-titulo">${titulo}</div>
   </div>
 `
@@ -193,6 +193,22 @@ const datosPaciente = (p) => {
   `
 }
 
+const datosPacienteMinimo = (p) => `
+  <div class="seccion">
+    <div class="seccion-titulo">Datos del paciente</div>
+    <div class="grilla">
+      <div class="full">
+        <div class="campo-lbl">Apellido y Nombre</div>
+        <div class="campo-val">${p.nombre}</div>
+      </div>
+      <div class="full">
+        <div class="campo-lbl">DNI</div>
+        <div class="campo-val">${p.dni}</div>
+      </div>
+    </div>
+  </div>
+`
+
 const capitalizarFrase = (texto) => {
   const t = texto.trim()
   return t ? t.charAt(0).toUpperCase() + t.slice(1).toLowerCase() : t
@@ -211,6 +227,15 @@ const firmasDobles = (geriatrico) => `
       <div class="linea"></div>
       <div class="lbl">Firma del Titular / Responsable</div>
     </div>
+    <div class="firma-box">
+      <div class="linea"></div>
+      <div class="lbl">${geriatrico.nombre_director || "Director/a"}</div>
+    </div>
+  </div>
+`
+
+const firmaDirectorSolo = (geriatrico) => `
+  <div class="firmas" style="grid-template-columns: 1fr; max-width: 260px; margin-left: auto; margin-right: auto;">
     <div class="firma-box">
       <div class="linea"></div>
       <div class="lbl">${geriatrico.nombre_director || "Director/a"}</div>
@@ -241,16 +266,8 @@ function templateResumenHistoriaClinica(p, geriatrico, fecha) {
 
   return `
     ${htmlHead()}
-
-    <div class="hdr">
-      <div class="hdr-nombre" style="font-style:italic;">Residencia Geriátrica "Del Este"</div>
-    </div>
-
+    ${encabezado(geriatrico, "Resumen de Historia Clínica")}
     ${fechaDiv(fecha)}
-
-    <div class="seccion">
-      <div class="seccion-titulo">Resumen de Historia Clínica</div>
-    </div>
 
     <div class="seccion">
       <div class="seccion-titulo">Datos del Paciente</div>
@@ -350,14 +367,9 @@ function templatePresupuesto(p, geriatrico, fecha, items) {
 
   return `
     ${htmlHead()}
-    ${encabezado(geriatrico, "Presupuesto de Prestaciones Geriátricas")}
+    ${encabezado(geriatrico, "Presupuesto de Prestaciones Geriátricas", false)}
     ${fechaDiv(fecha)}
-    ${datosPaciente(p)}
-
-    <div class="seccion">
-      <div class="seccion-titulo">Diagnóstico y Necesidad</div>
-      <div class="texto">${p.diagnostico || "—"}</div>
-    </div>
+    ${datosPacienteMinimo(p)}
 
     <div class="seccion">
       <div class="seccion-titulo">Detalle de Aranceles</div>
@@ -381,7 +393,7 @@ function templatePresupuesto(p, geriatrico, fecha, items) {
       </div>
     </div>
 
-    ${firmasDobles(geriatrico)}
+    ${firmaDirectorSolo(geriatrico)}
     ${htmlFoot()}
   `
 }
