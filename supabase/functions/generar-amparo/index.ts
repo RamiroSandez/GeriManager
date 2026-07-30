@@ -103,7 +103,6 @@ const templateResumenHistoriaClinica = (p: Record<string, string>) => `<!DOCTYPE
   b { font-weight: bold; }
   .justificado { text-align: justify; }
   .indentado { margin-left: 36px; text-align: justify; }
-  .firma { margin-top: 48px; }
 </style>
 </head>
 <body>
@@ -143,11 +142,6 @@ const templateResumenHistoriaClinica = (p: Record<string, string>) => `<!DOCTYPE
 
   <p><b>Prestaciones requeridas:</b></p>
   <p class="justificado">Requiere prestaciones de Hogar permanente Categoría A con centro de día. Servicio de Medicina Clínica con controles de rutina semanal y resumen de historia clínica por semana. Enfermería las 24hs. Médico, Nutricionista. Hotelería (lavado, planchado de ropa y ropa de cama). Sesiones de Psicología 1 vez por semana. Sesiones de Musicoterapia. Sesiones de Recreo terapia.</p>
-
-  <div class="firma">
-    <p><b><u>DR. OMAR M. MONTES</u></b></p>
-    <p>M.N 54889</p>
-  </div>
 </body>
 </html>`
 

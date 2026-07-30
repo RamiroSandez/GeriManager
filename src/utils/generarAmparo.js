@@ -131,16 +131,6 @@ const css = `
     line-height: 1.6;
   }
 
-  /* Firma simple (centrada) */
-  .firma-simple { text-align: center; margin-top: 52px; }
-  .firma-simple .linea {
-    border-top: 1.5px solid #222;
-    width: 220px;
-    margin: 48px auto 6px auto;
-  }
-  .firma-nombre { font-size: 11pt; font-weight: bold; }
-  .firma-cargo  { font-size: 10pt; color: #555; }
-
   /* Firmas dobles */
   .firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 52px; }
   .firma-box { text-align: center; }
@@ -203,6 +193,18 @@ const datosPaciente = (p) => {
   `
 }
 
+const capitalizarFrase = (texto) => {
+  const t = texto.trim()
+  return t ? t.charAt(0).toUpperCase() + t.slice(1).toLowerCase() : t
+}
+
+const listaDesdeTexto = (texto) =>
+  String(texto || "")
+    .split(/[,\n]+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(capitalizarFrase)
+
 const firmasDobles = (geriatrico) => `
   <div class="firmas">
     <div class="firma-box">
@@ -222,6 +224,16 @@ function templateResumenHistoriaClinica(p, geriatrico, fecha) {
   const medItems = p.medicacion?.length
     ? p.medicacion.map(m => `<li>${m}</li>`).join("")
     : "<li>Sin medicación registrada</li>"
+
+  const diagnosticoItems = listaDesdeTexto(p.diagnostico)
+  const diagnosticoHtml = diagnosticoItems.length
+    ? diagnosticoItems.map(d => `<li>${d}</li>`).join("")
+    : "<li>—</li>"
+
+  const antecedentesItems = listaDesdeTexto(p.antecedentes)
+  const antecedentesHtml = antecedentesItems.length
+    ? antecedentesItems.map(a => `<li>${a}</li>`).join("")
+    : "<li>—</li>"
 
   const fnac = p.fecha_nacimiento
     ? new Date(p.fecha_nacimiento + "T12:00:00").toLocaleDateString("es-AR")
@@ -272,12 +284,12 @@ function templateResumenHistoriaClinica(p, geriatrico, fecha) {
 
     <div class="seccion">
       <div class="seccion-titulo">Diagnóstico Actual</div>
-      <div class="texto"><u><strong>${p.diagnostico || "—"}</strong></u></div>
+      <ul class="med-lista">${diagnosticoHtml}</ul>
     </div>
 
     <div class="seccion">
       <div class="seccion-titulo">Antecedentes</div>
-      <div class="texto">${p.antecedentes || "—"}.</div>
+      <ul class="med-lista">${antecedentesHtml}</ul>
     </div>
 
     <div class="seccion">
@@ -314,12 +326,6 @@ function templateResumenHistoriaClinica(p, geriatrico, fecha) {
         Médico, Nutricionista. Hotelería (lavado, planchado de ropa y ropa de cama). Sesiones de Psicología
         1 vez por semana. Sesiones de Musicoterapia. Sesiones de Recreo terapia.
       </div>
-    </div>
-
-    <div class="firma-simple">
-      <div class="linea"></div>
-      <div class="firma-nombre">DR. OMAR M. MONTES</div>
-      <div class="firma-cargo">M.N 54889</div>
     </div>
 
     ${htmlFoot()}
