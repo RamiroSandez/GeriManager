@@ -10,7 +10,7 @@ export default function MedicacionPaciente({ pacienteId, registrarEvento, onCamb
   const { geriatrico } = useAuth()
   const [asignadas, setAsignadas] = useState([])
   const [catalogo, setCatalogo] = useState([])
-  const [seleccionados, setSeleccionados] = useState({}) // { [medId]: { frecuencia } }
+  const [seleccionados, setSeleccionados] = useState({}) // { [medId]: { dosis, frecuencia } }
   const [mostrarForm, setMostrarForm] = useState(false)
   const [guardando, setGuardando] = useState(false)
 
@@ -46,9 +46,13 @@ export default function MedicacionPaciente({ pacienteId, registrarEvento, onCamb
         const { [id]: _, ...rest } = prev
         return rest
       }
-      return { ...prev, [id]: { frecuencia: "" } }
+      const med = catalogo.find(m => m.id === id)
+      return { ...prev, [id]: { dosis: med?.dosis_estandar || "", frecuencia: "" } }
     })
   }
+
+  const setDosis = (id, val) =>
+    setSeleccionados(prev => ({ ...prev, [id]: { ...prev[id], dosis: val } }))
 
   const setFrecuencia = (id, val) =>
     setSeleccionados(prev => ({ ...prev, [id]: { ...prev[id], frecuencia: val } }))
@@ -59,15 +63,12 @@ export default function MedicacionPaciente({ pacienteId, registrarEvento, onCamb
       return
     }
     setGuardando(true)
-    const filas = idsSeleccionados.map(medId => {
-      const med = catalogo.find(m => m.id === medId)
-      return {
-        paciente_id: pacienteId,
-        medicamento_id: medId,
-        dosis: med?.dosis_estandar || null,
-        frecuencia: seleccionados[medId]?.frecuencia || null,
-      }
-    })
+    const filas = idsSeleccionados.map(medId => ({
+      paciente_id: pacienteId,
+      medicamento_id: medId,
+      dosis: seleccionados[medId]?.dosis || null,
+      frecuencia: seleccionados[medId]?.frecuencia || null,
+    }))
     const { error } = await supabase.from("paciente_medicamentos").insert(filas)
     setGuardando(false)
     if (error) {
@@ -161,7 +162,14 @@ export default function MedicacionPaciente({ pacienteId, registrarEvento, onCamb
                         </Box>
                       </HStack>
                       {activo && (
-                        <Box px={3} pb={2} onClick={e => e.stopPropagation()}>
+                        <HStack px={3} pb={2} gap={2} onClick={e => e.stopPropagation()}>
+                          <Input
+                            size="xs"
+                            placeholder="Dosis (ej: 500mg)"
+                            value={seleccionados[m.id]?.dosis || ""}
+                            onChange={e => setDosis(m.id, e.target.value)}
+                            bg="bg.panel"
+                          />
                           <Input
                             size="xs"
                             placeholder="Frecuencia (ej: Cada 8hs, Una vez al día)"
@@ -169,7 +177,7 @@ export default function MedicacionPaciente({ pacienteId, registrarEvento, onCamb
                             onChange={e => setFrecuencia(m.id, e.target.value)}
                             bg="bg.panel"
                           />
-                        </Box>
+                        </HStack>
                       )}
                     </Box>
                   )
