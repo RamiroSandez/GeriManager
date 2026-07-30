@@ -2,7 +2,10 @@ import { useState, useEffect } from "react"
 import { supabase } from "../services/supabase"
 import { useAuth } from "../contexts/AuthContext"
 import {
-  Box, Button, HStack, Input, Stack, Text,
+  Box, Button, HStack, Input, Stack, Text, Textarea,
+  DialogBackdrop, DialogBody, DialogCloseTrigger, DialogContent,
+  DialogFooter, DialogHeader, DialogPositioner, DialogRoot, DialogTitle,
+  FieldLabel, FieldRoot,
 } from "@chakra-ui/react"
 import { toaster } from "./toaster"
 
@@ -13,6 +16,9 @@ export default function MedicacionPaciente({ pacienteId, registrarEvento, onCamb
   const [seleccionados, setSeleccionados] = useState({}) // { [medId]: { dosis, frecuencia } }
   const [mostrarForm, setMostrarForm] = useState(false)
   const [guardando, setGuardando] = useState(false)
+  const [editando, setEditando] = useState(null) // fila de paciente_medicamentos en edición
+  const [formEdit, setFormEdit] = useState({ dosis: "", frecuencia: "", via: "", observaciones: "" })
+  const [guardandoEdit, setGuardandoEdit] = useState(false)
 
   const fetchAsignadas = async () => {
     const { data } = await supabase
@@ -80,6 +86,38 @@ export default function MedicacionPaciente({ pacienteId, registrarEvento, onCamb
       if (onCambio) onCambio()
       setSeleccionados({})
       setMostrarForm(false)
+      fetchAsignadas()
+    }
+  }
+
+  const abrirEditar = (a) => {
+    setFormEdit({
+      dosis: a.dosis || "",
+      frecuencia: a.frecuencia || "",
+      via: a.via || "",
+      observaciones: a.observaciones || "",
+    })
+    setEditando(a)
+  }
+
+  const setCampoEdit = (k, v) => setFormEdit(prev => ({ ...prev, [k]: v }))
+
+  const guardarEdicion = async () => {
+    setGuardandoEdit(true)
+    const { error } = await supabase.from("paciente_medicamentos").update({
+      dosis: formEdit.dosis || null,
+      frecuencia: formEdit.frecuencia || null,
+      via: formEdit.via || null,
+      observaciones: formEdit.observaciones || null,
+    }).eq("id", editando.id)
+    setGuardandoEdit(false)
+    if (error) {
+      toaster.create({ title: "Error al guardar", description: error.message, type: "error", duration: 4000 })
+    } else {
+      toaster.create({ title: "Medicación actualizada", type: "success", duration: 2000 })
+      if (registrarEvento) await registrarEvento(`Medicación editada: ${editando.medicamento?.nombre || ""}`)
+      if (onCambio) onCambio()
+      setEditando(null)
       fetchAsignadas()
     }
   }
@@ -202,7 +240,7 @@ export default function MedicacionPaciente({ pacienteId, registrarEvento, onCamb
         <Stack gap={0}>
           <Box
             display="grid"
-            gridTemplateColumns="1.5fr 120px 150px 100px 1fr 60px"
+            gridTemplateColumns="1.5fr 120px 150px 100px 1fr 90px"
             px={4} py={2}
             borderBottom="1px solid" borderColor="border.subtle"
             bg="bg.muted" borderRadius="lg"
@@ -217,7 +255,7 @@ export default function MedicacionPaciente({ pacienteId, registrarEvento, onCamb
             <Box
               key={a.id}
               display="grid"
-              gridTemplateColumns="1.5fr 120px 150px 100px 1fr 60px"
+              gridTemplateColumns="1.5fr 120px 150px 100px 1fr 90px"
               px={4} py={3}
               borderBottom={i < asignadas.length - 1 ? "1px solid" : "none"}
               borderColor="border.subtle"
@@ -230,15 +268,58 @@ export default function MedicacionPaciente({ pacienteId, registrarEvento, onCamb
               <Text fontSize="sm" color="text.muted">{a.frecuencia || "—"}</Text>
               <Text fontSize="sm" color="text.muted">{a.via || "—"}</Text>
               <Text fontSize="sm" color="text.muted">{a.observaciones || "—"}</Text>
-              <Box textAlign="right">
-                <Button size="xs" colorPalette="red" variant="ghost" onClick={() => quitar(a.id)}>
-                  Quitar
+              <HStack gap={0} justify="flex-end">
+                <Button size="xs" colorPalette="teal" variant="ghost" onClick={() => abrirEditar(a)}>
+                  ✏
                 </Button>
-              </Box>
+                <Button size="xs" colorPalette="red" variant="ghost" onClick={() => quitar(a.id)}>
+                  ✕
+                </Button>
+              </HStack>
             </Box>
           ))}
         </Stack>
       )}
+
+      <DialogRoot open={!!editando} onOpenChange={e => { if (!e.open) setEditando(null) }} size="md">
+        <DialogBackdrop />
+        <DialogPositioner>
+          <DialogContent borderRadius="xl">
+            <DialogHeader>
+              <DialogTitle>Editar {editando?.medicamento?.nombre}</DialogTitle>
+            </DialogHeader>
+            <DialogCloseTrigger />
+            <DialogBody>
+              <Stack gap={3}>
+                <HStack gap={3}>
+                  <FieldRoot>
+                    <FieldLabel fontSize="sm">Dosis</FieldLabel>
+                    <Input value={formEdit.dosis} onChange={e => setCampoEdit("dosis", e.target.value)} placeholder="Ej: 500mg" />
+                  </FieldRoot>
+                  <FieldRoot>
+                    <FieldLabel fontSize="sm">Frecuencia</FieldLabel>
+                    <Input value={formEdit.frecuencia} onChange={e => setCampoEdit("frecuencia", e.target.value)} placeholder="Ej: Cada 8hs" />
+                  </FieldRoot>
+                </HStack>
+                <FieldRoot>
+                  <FieldLabel fontSize="sm">Vía</FieldLabel>
+                  <Input value={formEdit.via} onChange={e => setCampoEdit("via", e.target.value)} placeholder="Ej: Oral" />
+                </FieldRoot>
+                <FieldRoot>
+                  <FieldLabel fontSize="sm">Observaciones</FieldLabel>
+                  <Textarea value={formEdit.observaciones} onChange={e => setCampoEdit("observaciones", e.target.value)} rows={2} placeholder="Opcional" />
+                </FieldRoot>
+              </Stack>
+            </DialogBody>
+            <DialogFooter gap={2}>
+              <Button variant="ghost" onClick={() => setEditando(null)}>Cancelar</Button>
+              <Button colorPalette="teal" onClick={guardarEdicion} loading={guardandoEdit}>
+                Guardar cambios
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </DialogPositioner>
+      </DialogRoot>
     </Stack>
   )
 }
