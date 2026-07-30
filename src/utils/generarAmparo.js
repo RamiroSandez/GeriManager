@@ -238,7 +238,8 @@ const firmaDirectorSolo = (geriatrico) => `
   <div class="firmas" style="grid-template-columns: 1fr; max-width: 260px; margin-left: auto; margin-right: auto;">
     <div class="firma-box">
       <div class="linea"></div>
-      <div class="lbl">${geriatrico.nombre_director || "Director/a"}</div>
+      <div class="lbl" style="font-weight: bold; color: #222;">${geriatrico.nombre_director || "Director/a"}</div>
+      <div class="lbl">Director/a Institucional</div>
     </div>
   </div>
 `
