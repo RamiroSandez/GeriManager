@@ -66,21 +66,23 @@ const formatMonto = (input) => {
 }
 
 
-const ITEMS_DEFAULT = [
-  { mes: "Marzo/2026", monto: "3.700.000" },
-  { mes: "Abril/2026", monto: "3.700.000" },
-  { mes: "Mayo/2026", monto: "3.800.000" },
-  { mes: "Junio/2026", monto: "3.800.000" },
-  { mes: "Julio/2026", monto: "3.900.000" },
-  { mes: "Agosto/2026", monto: "3.900.000" },
-  { mes: "Septiembre/2026", monto: "3.900.000" },
-  { mes: "Octubre/2026", monto: "4.000.000" },
-  { mes: "Noviembre/2026", monto: "4.100.000" },
-  { mes: "Diciembre/2026", monto: "4.100.000" },
-  { mes: "Enero/2027", monto: "4.200.000" },
-  { mes: "Febrero/2027", monto: "4.300.000" },
-  { mes: "Marzo/2027", monto: "4.400.000" },
-].map(i => ({ ...i, id: crypto.randomUUID() }))
+const mesActualISO = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+}
+
+const sumarMeses = (ym, n) => {
+  const [y, m] = ym.split("-").map(Number)
+  const d = new Date(y, m - 1 + n, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+}
+
+const formatearMesItem = (ym) => {
+  const [y, m] = ym.split("-").map(Number)
+  return `${MESES[m - 1]}/${y}`
+}
+
+const itemPresupuestoVacio = () => [{ id: crypto.randomUUID(), monto: "" }]
 
 export default function Amparos() {
   const { geriatrico } = useAuth()
@@ -91,7 +93,12 @@ export default function Amparos() {
   // Generación
   const [pacienteId, setPacienteId] = useState("")
   const [tipoSeleccionado, setTipoSeleccionado] = useState("")
-  const [itemsPresupuesto, setItemsPresupuesto] = useState(ITEMS_DEFAULT)
+  const [mesInicioPresupuesto, setMesInicioPresupuesto] = useState(mesActualISO())
+  const [itemsPresupuesto, setItemsPresupuesto] = useState(itemPresupuestoVacio())
+  const itemsConMes = itemsPresupuesto.map((it, idx) => ({
+    ...it,
+    mes: formatearMesItem(sumarMeses(mesInicioPresupuesto, idx)),
+  }))
   const [informeDeuda, setInformeDeuda] = useState({ monto: "", periodo: "" })
   const [previsualizando, setPrevisualizando] = useState(false)
   const [htmlPreview, setHtmlPreview] = useState("")
@@ -151,7 +158,7 @@ export default function Amparos() {
     setPrevisualizando(true)
     try {
       const extras = tipoSeleccionado === "presupuesto"
-        ? { item_presupuesto: itemsPresupuesto.filter(i => i.mes && i.monto).map(i => `${i.mes.replace(/\//g, "-")}: $${i.monto}`).join("<br>") }
+        ? { item_presupuesto: itemsConMes.filter(i => i.monto).map(i => `${i.mes.replace(/\//g, "-")}: $${i.monto}`).join("<br>") }
         : tipoSeleccionado === "informe_deuda"
         ? { monto_letras: numeroALetras(informeDeuda.monto), monto_numerico: formatMonto(informeDeuda.monto), periodo: formatearPeriodo(informeDeuda.periodo) }
         : {}
@@ -171,7 +178,7 @@ export default function Amparos() {
     setGuardandoDoc(true)
     try {
       const itemsStr = tipoSeleccionado === "presupuesto"
-        ? itemsPresupuesto.filter(i => i.mes && i.monto).map(i => `${i.mes.replace(/\//g, "-")}: $${i.monto}`).join("<br>")
+        ? itemsConMes.filter(i => i.monto).map(i => `${i.mes.replace(/\//g, "-")}: $${i.monto}`).join("<br>")
         : tipoSeleccionado === "informe_deuda"
         ? JSON.stringify({ monto: informeDeuda.monto, periodo: informeDeuda.periodo })
         : null
@@ -184,7 +191,8 @@ export default function Amparos() {
       })
       if (error) throw new Error(error.message)
       setHtmlPreview("")
-      setItemsPresupuesto(ITEMS_DEFAULT)
+      setMesInicioPresupuesto(mesActualISO())
+      setItemsPresupuesto(itemPresupuestoVacio())
       setInformeDeuda({ monto: "", periodo: "" })
       setPacienteId("")
       setTipoSeleccionado("")
@@ -364,26 +372,35 @@ export default function Amparos() {
 
               {tipoSeleccionado === "presupuesto" && (
                 <Box>
+                  <FieldRoot mb={3} maxW="220px">
+                    <FieldLabel fontSize="sm">Mes de inicio</FieldLabel>
+                    <Input
+                      type="month"
+                      value={mesInicioPresupuesto}
+                      onChange={e => setMesInicioPresupuesto(e.target.value)}
+                      bg="bg.muted"
+                    />
+                  </FieldRoot>
                   <Text fontSize="sm" fontWeight="500" mb={2}>Ítems del presupuesto</Text>
                   <Stack gap={2}>
-                    {itemsPresupuesto.map((item) => (
+                    {itemsConMes.map((item) => (
                       <HStack key={item.id} gap={2}>
-                        <Input
-                          value={item.mes}
-                          onChange={e => setItemsPresupuesto(prev => prev.map(it => it.id === item.id ? { ...it, mes: e.target.value } : it))}
-                          placeholder="Abril/2026"
-                          bg="bg.muted"
-                          flex={1}
-                        />
+                        <Text fontSize="sm" color="text.muted" minW="140px" flexShrink={0}>
+                          {item.mes.replace("/", " ")}
+                        </Text>
                         <Text color="text.muted" flexShrink={0}>$</Text>
                         <Input
                           value={item.monto}
-                          onChange={e => setItemsPresupuesto(prev => prev.map(it => it.id === item.id ? { ...it, monto: e.target.value } : it))}
+                          onChange={e => {
+                            const val = e.target.value.replace(/[^\d.]/g, "")
+                            setItemsPresupuesto(prev => prev.map(it => it.id === item.id ? { ...it, monto: val } : it))
+                          }}
                           placeholder="3.700.000"
                           bg="bg.muted"
                           flex={1}
+                          inputMode="numeric"
                         />
-                        {itemsPresupuesto.length > 1 && (
+                        {itemsConMes.length > 1 && (
                           <Button
                             size="sm" variant="ghost" colorPalette="red"
                             onClick={() => setItemsPresupuesto(prev => prev.filter(it => it.id !== item.id))}
@@ -395,7 +412,7 @@ export default function Amparos() {
                     ))}
                     <Button
                       size="sm" variant="ghost" colorPalette="teal" alignSelf="flex-start"
-                      onClick={() => setItemsPresupuesto(prev => [...prev, { mes: "", monto: "", id: crypto.randomUUID() }])}
+                      onClick={() => setItemsPresupuesto(prev => [...prev, { id: crypto.randomUUID(), monto: "" }])}
                     >
                       + Agregar ítem
                     </Button>
