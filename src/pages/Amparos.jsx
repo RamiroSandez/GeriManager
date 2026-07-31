@@ -392,10 +392,10 @@ export default function Amparos() {
                         <Input
                           value={item.monto}
                           onChange={e => {
-                            const val = e.target.value.replace(/[^\d.]/g, "")
+                            const val = e.target.value.replace(/\D/g, "")
                             setItemsPresupuesto(prev => prev.map(it => it.id === item.id ? { ...it, monto: val } : it))
                           }}
-                          placeholder="3.700.000"
+                          placeholder="120000"
                           bg="bg.muted"
                           flex={1}
                           inputMode="numeric"

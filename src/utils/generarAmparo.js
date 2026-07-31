@@ -353,8 +353,13 @@ function templateResumenHistoriaClinica(p, geriatrico, fecha) {
 // ─── Plantilla 2: Presupuesto ────────────────────────────────────────────────
 
 function templatePresupuesto(p, geriatrico, fecha, items) {
+  const formatMontoItem = (monto) => {
+    const n = parseInt(String(monto).replace(/[.,\s]/g, ""))
+    return isNaN(n) ? monto : new Intl.NumberFormat("es-AR").format(n)
+  }
+
   const filas = items.map(({ mes, monto }) =>
-    `<tr><td>${mes}</td><td style="text-align:right;">$${monto}</td></tr>`
+    `<tr><td>${mes}</td><td style="text-align:right;">$${formatMontoItem(monto)}</td></tr>`
   ).join("")
 
   const totalNum = items.reduce((acc, i) => {
