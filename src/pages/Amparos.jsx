@@ -16,7 +16,7 @@ const PDF_OPTS = {
   jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
   pagebreak: {
     mode: ["css", "legacy"],
-    avoid: [".seccion", ".texto", ".texto-ind", ".aviso", ".firmas", "tr", ".grilla > div", ".grilla-3 > div"],
+    avoid: [".texto", ".texto-ind", ".aviso", ".firmas", "tr", ".grilla > div", ".grilla-3 > div"],
   },
 }
 

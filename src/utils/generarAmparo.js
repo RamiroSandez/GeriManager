@@ -51,7 +51,7 @@ const css = `
   }
 
   /* Secciones */
-  .seccion { margin-bottom: 20px; page-break-inside: avoid; break-inside: avoid; }
+  .seccion { margin-bottom: 20px; }
   .seccion-titulo {
     font-size: 9pt;
     font-weight: bold;
