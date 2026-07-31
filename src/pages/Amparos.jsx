@@ -14,7 +14,10 @@ const PDF_OPTS = {
   image: { type: "jpeg", quality: 0.98 },
   html2canvas: { scale: 2 },
   jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-  pagebreak: { mode: ["css", "legacy"] },
+  pagebreak: {
+    mode: ["css", "legacy"],
+    avoid: [".seccion", ".texto", ".texto-ind", ".aviso", ".firmas", "tr", ".grilla > div", ".grilla-3 > div"],
+  },
 }
 
 const tipoLabel = (key) => TIPOS_AMPARO.find(t => t.key === key)?.label || key
