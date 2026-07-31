@@ -274,8 +274,16 @@ function templateResumenHistoriaClinica(p, geriatrico, fecha) {
 
   return `
     ${htmlHead()}
-    ${encabezado(geriatrico, "Resumen de Historia Clínica")}
+
+    <div class="hdr">
+      <div class="hdr-nombre" style="font-style:italic;">Residencia Geriátrica "Del Este"</div>
+    </div>
+
     ${fechaDiv(fecha)}
+
+    <div class="seccion">
+      <div class="seccion-titulo">Resumen de Historia Clínica</div>
+    </div>
 
     <div class="seccion">
       <div class="seccion-titulo">Datos del Paciente</div>
