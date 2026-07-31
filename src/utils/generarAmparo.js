@@ -51,7 +51,7 @@ const css = `
   }
 
   /* Secciones */
-  .seccion { margin-bottom: 20px; }
+  .seccion { margin-bottom: 20px; page-break-inside: avoid; break-inside: avoid; }
   .seccion-titulo {
     font-size: 9pt;
     font-weight: bold;
@@ -88,6 +88,8 @@ const css = `
     line-height: 1.75;
     text-align: justify;
     margin-bottom: 10px;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
   .texto-ind {
     font-size: 10.5pt;
@@ -95,6 +97,8 @@ const css = `
     text-align: justify;
     margin-bottom: 10px;
     margin-left: 30px;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   /* Lista de medicación */
@@ -119,6 +123,7 @@ const css = `
   tbody td { border: 1px solid #ddd; padding: 6px 10px; }
   tbody tr:nth-child(even) { background: #fafafa; }
   tfoot td { border: 1px solid #ccc; padding: 7px 10px; font-weight: bold; background: #eef7ee; }
+  tr { page-break-inside: avoid; break-inside: avoid; }
 
   /* Aviso */
   .aviso {
@@ -129,10 +134,12 @@ const css = `
     margin-bottom: 16px;
     border-radius: 2px;
     line-height: 1.6;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   /* Firmas dobles */
-  .firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 52px; }
+  .firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 52px; page-break-inside: avoid; break-inside: avoid; }
   .firma-box { text-align: center; }
   .firma-box .linea { border-top: 1.5px solid #222; padding-top: 6px; margin-top: 48px; }
   .firma-box .lbl { font-size: 9.5pt; color: #555; }
