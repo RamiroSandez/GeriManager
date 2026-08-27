@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react"
+﻿import { useState, useEffect, useRef } from "react"
 import { supabase } from "../services/supabase"
 import { useAuth } from "../contexts/AuthContext"
 import {
@@ -21,8 +21,58 @@ export default function Institucion() {
   })
   const [cargando, setCargando] = useState(true)
   const [guardando, setGuardando] = useState(false)
+  const [subiendoFirma, setSubiendoFirma] = useState(false)
+  const firmaInputRef = useRef()
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
+
+  const firmaUrl = geriatrico?.firma_path
+    ? supabase.storage.from("documentos").getPublicUrl(geriatrico.firma_path).data.publicUrl
+    : null
+
+  const subirFirma = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    if (!file.type.startsWith("image/")) {
+      toaster.create({ title: "El archivo debe ser una imagen (PNG o JPG)", type: "error", duration: 3000 })
+      e.target.value = ""
+      return
+    }
+    setSubiendoFirma(true)
+    const ext = file.name.split(".").pop()
+    const filePath = `firmas/${geriatrico.id}.${ext}`
+    const { error: uploadError } = await supabase.storage
+      .from("documentos")
+      .upload(filePath, file, { upsert: true })
+    if (uploadError) {
+      toaster.create({ title: "Error al subir la firma", description: uploadError.message, type: "error", duration: 4000 })
+      setSubiendoFirma(false)
+      e.target.value = ""
+      return
+    }
+    const { error } = await supabase.from("geriatricos").update({ firma_path: filePath }).eq("id", geriatrico.id)
+    setSubiendoFirma(false)
+    e.target.value = ""
+    if (error) {
+      toaster.create({ title: "Error al guardar la firma", description: error.message, type: "error", duration: 4000 })
+    } else {
+      toaster.create({ title: "Firma cargada", type: "success", duration: 2000 })
+      await refreshGeriatrico()
+    }
+  }
+
+  const quitarFirma = async () => {
+    if (geriatrico?.firma_path) {
+      await supabase.storage.from("documentos").remove([geriatrico.firma_path])
+    }
+    const { error } = await supabase.from("geriatricos").update({ firma_path: null }).eq("id", geriatrico.id)
+    if (error) {
+      toaster.create({ title: "Error al quitar la firma", description: error.message, type: "error", duration: 4000 })
+    } else {
+      toaster.create({ title: "Firma eliminada", type: "success", duration: 2000 })
+      await refreshGeriatrico()
+    }
+  }
 
   useEffect(() => {
     if (!geriatrico?.id) return
@@ -115,6 +165,39 @@ export default function Institucion() {
                 <Input type="email" value={form.email_contacto} onChange={e => set("email_contacto", e.target.value)} placeholder="contacto@geriatrico.com" />
               </FieldRoot>
             </Grid>
+
+            <Box mt={6} pt={5} borderTop="1px solid" borderColor="border.subtle">
+              <Text fontSize="sm" fontWeight="600" color="text.main" mb={1}>Firma digital del director/a</Text>
+              <Text fontSize="xs" color="text.muted" mb={3}>
+                Se usa para firmar automáticamente los documentos de amparo generados (PNG o JPG, fondo transparente recomendado).
+              </Text>
+              <input
+                type="file"
+                ref={firmaInputRef}
+                style={{ display: "none" }}
+                accept="image/png,image/jpeg"
+                onChange={subirFirma}
+              />
+              {firmaUrl ? (
+                <HStack gap={4} align="center" flexWrap="wrap">
+                  <Box bg="bg.muted" borderRadius="md" p={2} border="1px solid" borderColor="border.subtle">
+                    <img src={firmaUrl} alt="Firma" style={{ maxHeight: 60, maxWidth: 200, display: "block" }} />
+                  </Box>
+                  <HStack gap={2}>
+                    <Button size="sm" variant="outline" colorPalette="teal" onClick={() => firmaInputRef.current?.click()} loading={subiendoFirma}>
+                      Reemplazar
+                    </Button>
+                    <Button size="sm" variant="ghost" colorPalette="red" onClick={quitarFirma}>
+                      Quitar
+                    </Button>
+                  </HStack>
+                </HStack>
+              ) : (
+                <Button size="sm" colorPalette="teal" variant="outline" onClick={() => firmaInputRef.current?.click()} loading={subiendoFirma}>
+                  Subir firma
+                </Button>
+              )}
+            </Box>
           </Card.Body>
         </Card.Root>
 

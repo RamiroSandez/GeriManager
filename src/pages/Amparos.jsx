@@ -149,6 +149,10 @@ export default function Amparos() {
       toaster.create({ title: "Seleccioná un tipo de documento", type: "warning", duration: 3000 })
       return
     }
+    if (tipoSeleccionado === "presupuesto" && !/^\d{4}-\d{2}$/.test(mesInicioPresupuesto)) {
+      toaster.create({ title: "Seleccioná el mes de inicio del presupuesto", type: "warning", duration: 3000 })
+      return
+    }
     const faltantes = validarCamposAmparo(paciente)
     if (faltantes.length > 0) {
       toaster.create({ title: "Faltan datos del paciente", description: `Completá: ${faltantes.join(", ")}`, type: "warning", duration: 6000 })
@@ -179,6 +183,10 @@ export default function Amparos() {
   const guardarDocumento = async () => {
     const paciente = pacientes.find(p => p.id === Number(pacienteId))
     if (!paciente) return
+    if (tipoSeleccionado === "presupuesto" && !/^\d{4}-\d{2}$/.test(mesInicioPresupuesto)) {
+      toaster.create({ title: "Seleccioná el mes de inicio del presupuesto", type: "warning", duration: 3000 })
+      return
+    }
     setGuardandoDoc(true)
     try {
       const itemsStr = tipoSeleccionado === "presupuesto"

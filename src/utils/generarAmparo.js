@@ -1,3 +1,5 @@
+import { supabase } from "../services/supabase"
+
 // ─── Estilos compartidos ─────────────────────────────────────────────────────
 
 const css = `
@@ -216,9 +218,21 @@ const datosPacienteMinimo = (p) => `
   </div>
 `
 
+// Sigla o número romano corto (HTA, DBT, EPOC, II, IV) — se preserva tal cual.
+const esAcronimo = (palabra) => /^[A-ZÁÉÍÓÚÑ0-9]{2,5}$/.test(palabra)
+
 const capitalizarFrase = (texto) => {
   const t = texto.trim()
-  return t ? t.charAt(0).toUpperCase() + t.slice(1).toLowerCase() : t
+  if (!t) return t
+  return t
+    .split(" ")
+    .map((palabra, i) => {
+      const limpio = palabra.replace(/[^\p{L}\p{N}]/gu, "")
+      if (esAcronimo(limpio)) return palabra
+      const minuscula = palabra.toLowerCase()
+      return i === 0 ? minuscula.charAt(0).toUpperCase() + minuscula.slice(1) : minuscula
+    })
+    .join(" ")
 }
 
 const listaDesdeTexto = (texto) =>
@@ -228,6 +242,10 @@ const listaDesdeTexto = (texto) =>
     .filter(Boolean)
     .map(capitalizarFrase)
 
+const imgFirma = (geriatrico) => geriatrico.firma_url
+  ? `<img src="${geriatrico.firma_url}" alt="Firma" style="max-width:180px; max-height:70px; display:block; margin:0 auto 4px auto;" />`
+  : `<div class="linea"></div>`
+
 const firmasDobles = (geriatrico) => `
   <div class="firmas">
     <div class="firma-box">
@@ -235,7 +253,7 @@ const firmasDobles = (geriatrico) => `
       <div class="lbl">Firma del Titular / Responsable</div>
     </div>
     <div class="firma-box">
-      <div class="linea"></div>
+      ${imgFirma(geriatrico)}
       <div class="lbl">${geriatrico.nombre_director || "Director/a"}</div>
     </div>
   </div>
@@ -244,7 +262,7 @@ const firmasDobles = (geriatrico) => `
 const firmaDirectorSolo = (geriatrico) => `
   <div class="firmas" style="grid-template-columns: 1fr; max-width: 260px; margin-left: auto; margin-right: auto;">
     <div class="firma-box">
-      <div class="linea"></div>
+      ${imgFirma(geriatrico)}
       <div class="lbl" style="font-weight: bold; color: #222;">${geriatrico.nombre_director || "Director/a"}</div>
       <div class="lbl">Director/a Institucional</div>
     </div>
@@ -566,6 +584,9 @@ export function generarAmparo(tipo, paciente, geriatrico, extras = {}) {
   const g = {
     nombre: geriatrico?.nombre || "",
     nombre_director: geriatrico?.nombre_director || "",
+    firma_url: geriatrico?.firma_path
+      ? supabase.storage.from("documentos").getPublicUrl(geriatrico.firma_path).data.publicUrl
+      : "",
   }
 
   switch (tipo) {
