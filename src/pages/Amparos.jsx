@@ -2,7 +2,7 @@
 import { supabase } from "../services/supabase"
 import { useAuth } from "../contexts/AuthContext"
 import {
-  Box, Button, Card, FieldLabel, FieldRoot,
+  Box, Button, Card, FieldLabel, FieldRoot, Grid,
   Heading, HStack, Input, NativeSelect, Spinner, Stack, Text,
 } from "@chakra-ui/react"
 import { Toaster, toaster } from "../components/toaster"
@@ -16,59 +16,16 @@ const PDF_OPTS = {
   jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
   pagebreak: {
     mode: ["css", "legacy"],
-    avoid: [".texto", ".texto-ind", ".aviso", ".firmas", "tr", ".grilla > div", ".grilla-3 > div"],
+    avoid: [
+      ".texto", ".texto-ind", ".aviso", ".firmas", "tr", ".grilla > div", ".grilla-3 > div",
+      ".campo-linea", ".texto-deuda", ".tabla-total", ".firma-deuda",
+    ],
   },
 }
 
 const tipoLabel = (key) => TIPOS_AMPARO.find(t => t.key === key)?.label || key
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
-const formatearPeriodo = (val) => {
-  if (!val) return ""
-  const [year, month] = val.split("-")
-  return `${MESES[parseInt(month) - 1]} ${year}`
-}
-
-const _U = ["","UN","DOS","TRES","CUATRO","CINCO","SEIS","SIETE","OCHO","NUEVE","DIEZ","ONCE","DOCE","TRECE","CATORCE","QUINCE","DIECISÉIS","DIECISIETE","DIECIOCHO","DIECINUEVE"]
-const _V = ["VEINTE","VEINTIÚN","VEINTIDÓS","VEINTITRÉS","VEINTICUATRO","VEINTICINCO","VEINTISÉIS","VEINTISIETE","VEINTIOCHO","VEINTINUEVE"]
-const _D = ["","","VEINTE","TREINTA","CUARENTA","CINCUENTA","SESENTA","SETENTA","OCHENTA","NOVENTA"]
-const _C = ["","CIENTO","DOSCIENTOS","TRESCIENTOS","CUATROCIENTOS","QUINIENTOS","SEISCIENTOS","SETECIENTOS","OCHOCIENTOS","NOVECIENTOS"]
-
-const _menorMil = (n) => {
-  if (n === 0) return ""
-  if (n === 100) return "CIEN"
-  const c = Math.floor(n / 100), r = n % 100
-  let s = c > 0 ? _C[c] : ""
-  if (r > 0) {
-    if (s) s += " "
-    if (r < 20) s += _U[r]
-    else if (r < 30) s += _V[r - 20]
-    else { s += _D[Math.floor(r / 10)]; if (r % 10 > 0) s += " Y " + _U[r % 10] }
-  }
-  return s
-}
-
-const numeroALetras = (input) => {
-  const n = parseInt(String(input).replace(/[.,\s]/g, ""))
-  if (!n || isNaN(n)) return ""
-  const mill = Math.floor(n / 1_000_000)
-  const miles = Math.floor((n % 1_000_000) / 1_000)
-  const resto = n % 1_000
-  const partes = []
-  if (mill === 1) partes.push("UN MILLÓN")
-  else if (mill > 1) partes.push(_menorMil(mill) + " MILLONES")
-  if (miles === 1) partes.push("MIL")
-  else if (miles > 1) partes.push(_menorMil(miles) + " MIL")
-  if (resto > 0) partes.push(_menorMil(resto))
-  return partes.join(" ") + " PESOS"
-}
-
-const formatMonto = (input) => {
-  const n = parseInt(String(input).replace(/[.,\s]/g, ""))
-  if (!n || isNaN(n)) return ""
-  return "$" + n.toLocaleString("es-AR")
-}
-
 
 const mesActualISO = () => {
   const d = new Date()
@@ -86,7 +43,22 @@ const formatearMesItem = (ym) => {
   return `${MESES[m - 1]}/${y}`
 }
 
+const formatearMesCorto = (ym) => {
+  const [y, m] = ym.split("-").map(Number)
+  return `${MESES[m - 1]} ${String(y).slice(2)}`
+}
+
 const itemPresupuestoVacio = () => [{ id: crypto.randomUUID(), monto: "" }]
+
+const facturaVacia = () => ({ id: crypto.randomUUID(), factura: "", importeTotal: "", fechaPresentada: "", importeAbonado: "" })
+
+const esTipoFacturas = (tipo) => tipo === "informe_deuda" || tipo === "recibo_pago"
+
+const facturasParaGuardar = (facturas) =>
+  facturas
+    .filter(f => f.importeTotal || f.importeAbonado)
+    .map(({ periodo, factura, importeTotal, fechaPresentada, importeAbonado }) =>
+      ({ periodo, factura, importeTotal, fechaPresentada, importeAbonado }))
 
 export default function Amparos() {
   const { geriatrico } = useAuth()
@@ -103,7 +75,12 @@ export default function Amparos() {
     ...it,
     mes: formatearMesItem(sumarMeses(mesInicioPresupuesto, idx)),
   }))
-  const [informeDeuda, setInformeDeuda] = useState({ monto: "", periodo: "" })
+  const [mesInicioDeuda, setMesInicioDeuda] = useState(mesActualISO())
+  const [facturasDeuda, setFacturasDeuda] = useState(() => [facturaVacia()])
+  const facturasConPeriodo = facturasDeuda.map((f, idx) => ({
+    ...f,
+    periodo: formatearMesCorto(sumarMeses(mesInicioDeuda, idx)),
+  }))
   const [previsualizando, setPrevisualizando] = useState(false)
   const [htmlPreview, setHtmlPreview] = useState("")
   const [guardandoDoc, setGuardandoDoc] = useState(false)
@@ -112,7 +89,12 @@ export default function Amparos() {
   const [descargandoZip, setDescargandoZip] = useState(null)
   const [eliminando, setEliminando] = useState(null)
 
-  const tiposDisponibles = TIPOS_AMPARO.filter(t => t.templateId)
+  const tiposDisponibles = TIPOS_AMPARO
+
+  const setCampoFactura = (id, campo, val) =>
+    setFacturasDeuda(prev => prev.map(f => f.id === id ? { ...f, [campo]: val } : f))
+  const agregarFactura = () => setFacturasDeuda(prev => [...prev, facturaVacia()])
+  const quitarFactura = (id) => setFacturasDeuda(prev => prev.filter(f => f.id !== id))
 
   const fetchAmparos = async () => {
     const { data } = await supabase
@@ -153,6 +135,10 @@ export default function Amparos() {
       toaster.create({ title: "Seleccioná el mes de inicio del presupuesto", type: "warning", duration: 3000 })
       return
     }
+    if (esTipoFacturas(tipoSeleccionado) && !/^\d{4}-\d{2}$/.test(mesInicioDeuda)) {
+      toaster.create({ title: "Seleccioná el mes de inicio", type: "warning", duration: 3000 })
+      return
+    }
     const faltantes = validarCamposAmparo(paciente)
     if (faltantes.length > 0) {
       toaster.create({ title: "Faltan datos del paciente", description: `Completá: ${faltantes.join(", ")}`, type: "warning", duration: 6000 })
@@ -167,8 +153,8 @@ export default function Amparos() {
     try {
       const extras = tipoSeleccionado === "presupuesto"
         ? { item_presupuesto: itemsConMes.filter(i => i.monto).map(i => `${i.mes.replace(/\//g, "-")}: $${i.monto}`).join("<br>") }
-        : tipoSeleccionado === "informe_deuda"
-        ? { monto_letras: numeroALetras(informeDeuda.monto), monto_numerico: formatMonto(informeDeuda.monto), periodo: formatearPeriodo(informeDeuda.periodo) }
+        : esTipoFacturas(tipoSeleccionado)
+        ? { facturas: facturasParaGuardar(facturasConPeriodo) }
         : {}
       const html = generarAmparo(tipoSeleccionado, paciente, geriatrico, extras)
       setHtmlPreview(html)
@@ -187,12 +173,16 @@ export default function Amparos() {
       toaster.create({ title: "Seleccioná el mes de inicio del presupuesto", type: "warning", duration: 3000 })
       return
     }
+    if (esTipoFacturas(tipoSeleccionado) && !/^\d{4}-\d{2}$/.test(mesInicioDeuda)) {
+      toaster.create({ title: "Seleccioná el mes de inicio", type: "warning", duration: 3000 })
+      return
+    }
     setGuardandoDoc(true)
     try {
       const itemsStr = tipoSeleccionado === "presupuesto"
         ? itemsConMes.filter(i => i.monto).map(i => `${i.mes.replace(/\//g, "-")}: $${i.monto}`).join("<br>")
-        : tipoSeleccionado === "informe_deuda"
-        ? JSON.stringify({ monto: informeDeuda.monto, periodo: informeDeuda.periodo })
+        : esTipoFacturas(tipoSeleccionado)
+        ? JSON.stringify({ facturas: facturasParaGuardar(facturasConPeriodo) })
         : null
       const { error } = await supabase.from("amparos").insert({
         geriatrico_id: geriatrico.id,
@@ -205,7 +195,8 @@ export default function Amparos() {
       setHtmlPreview("")
       setMesInicioPresupuesto(mesActualISO())
       setItemsPresupuesto(itemPresupuestoVacio())
-      setInformeDeuda({ monto: "", periodo: "" })
+      setMesInicioDeuda(mesActualISO())
+      setFacturasDeuda([facturaVacia()])
       setPacienteId("")
       setTipoSeleccionado("")
       fetchAmparos()
@@ -230,7 +221,7 @@ export default function Amparos() {
     try {
       let extras = {}
       if (tipo === "presupuesto" && amparo.observaciones) extras = { item_presupuesto: amparo.observaciones }
-      else if (tipo === "informe_deuda" && amparo.observaciones) { try { const r = JSON.parse(amparo.observaciones); extras = { monto_letras: numeroALetras(r.monto), monto_numerico: formatMonto(r.monto), periodo: formatearPeriodo(r.periodo) } } catch {} }
+      else if (esTipoFacturas(tipo) && amparo.observaciones) { try { const r = JSON.parse(amparo.observaciones); extras = { facturas: r.facturas || [] } } catch {} }
       const html = generarAmparo(tipo, paciente, geriatrico, extras)
       const html2pdf = (await import("html2pdf.js")).default
       const container = document.createElement("div")
@@ -257,7 +248,7 @@ export default function Amparos() {
         const tipo = amparo.tipo || TIPOS_AMPARO[0].key
         let extras = {}
         if (tipo === "presupuesto" && amparo.observaciones) extras = { item_presupuesto: amparo.observaciones }
-        else if (tipo === "informe_deuda" && amparo.observaciones) { try { const r = JSON.parse(amparo.observaciones); extras = { monto_letras: numeroALetras(r.monto), monto_numerico: formatMonto(r.monto), periodo: formatearPeriodo(r.periodo) } } catch {} }
+        else if (esTipoFacturas(tipo) && amparo.observaciones) { try { const r = JSON.parse(amparo.observaciones); extras = { facturas: r.facturas || [] } } catch {} }
         try {
           const html = generarAmparo(tipo, paciente, geriatrico, extras)
           const container = document.createElement("div")
@@ -348,36 +339,61 @@ export default function Amparos() {
                 </FieldRoot>
               </HStack>
 
-              {tipoSeleccionado === "informe_deuda" && (
+              {esTipoFacturas(tipoSeleccionado) && (
                 <Box>
-                  <Text fontSize="sm" fontWeight="500" mb={3}>Datos del informe de deuda</Text>
-                  <Stack gap={3}>
-                    <HStack gap={3} alignItems="flex-start">
-                      <FieldRoot flex={1}>
-                        <FieldLabel fontSize="sm">Monto adeudado</FieldLabel>
-                        <Input
-                          type="number"
-                          value={informeDeuda.monto}
-                          onChange={e => setInformeDeuda(prev => ({ ...prev, monto: e.target.value }))}
-                          placeholder="3700000"
-                          bg="bg.muted"
-                        />
-                        {informeDeuda.monto && (
-                          <Text fontSize="xs" color="text.muted" mt={1}>
-                            {formatMonto(informeDeuda.monto)} — {numeroALetras(informeDeuda.monto)}
-                          </Text>
+                  <FieldRoot mb={3} maxW="220px">
+                    <FieldLabel fontSize="sm">Mes de inicio</FieldLabel>
+                    <Input
+                      type="month"
+                      value={mesInicioDeuda}
+                      onChange={e => setMesInicioDeuda(e.target.value)}
+                      bg="bg.muted"
+                    />
+                  </FieldRoot>
+                  <Text fontSize="sm" fontWeight="500" mb={2}>Facturas</Text>
+                  <Stack gap={2}>
+                    {facturasConPeriodo.map((f) => (
+                      <Box key={f.id} p={3} border="1px solid" borderColor="border.subtle" borderRadius="md" bg="bg.muted">
+                        <Text fontSize="xs" fontWeight="600" color="teal.600" mb={2} textTransform="capitalize">
+                          {f.periodo}
+                        </Text>
+                        <Grid
+                          templateColumns={{ base: "1fr", md: tipoSeleccionado === "recibo_pago" ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr" }}
+                          gap={2}
+                        >
+                          <Input
+                            size="sm" placeholder="N° Factura" bg="bg.panel"
+                            value={f.factura}
+                            onChange={e => setCampoFactura(f.id, "factura", e.target.value)}
+                          />
+                          <Input
+                            size="sm" placeholder="Importe total" bg="bg.panel" inputMode="numeric"
+                            value={f.importeTotal}
+                            onChange={e => setCampoFactura(f.id, "importeTotal", e.target.value.replace(/\D/g, ""))}
+                          />
+                          <Input
+                            size="sm" type="date" bg="bg.panel"
+                            value={f.fechaPresentada}
+                            onChange={e => setCampoFactura(f.id, "fechaPresentada", e.target.value)}
+                          />
+                          {tipoSeleccionado === "recibo_pago" && (
+                            <Input
+                              size="sm" placeholder="Importe abonado" bg="bg.panel" inputMode="numeric"
+                              value={f.importeAbonado}
+                              onChange={e => setCampoFactura(f.id, "importeAbonado", e.target.value.replace(/\D/g, ""))}
+                            />
+                          )}
+                        </Grid>
+                        {facturasConPeriodo.length > 1 && (
+                          <Button mt={2} size="xs" variant="ghost" colorPalette="red" onClick={() => quitarFactura(f.id)}>
+                            Quitar factura
+                          </Button>
                         )}
-                      </FieldRoot>
-                      <FieldRoot flex={1}>
-                        <FieldLabel fontSize="sm">Período</FieldLabel>
-                        <Input
-                          type="month"
-                          value={informeDeuda.periodo}
-                          onChange={e => setInformeDeuda(prev => ({ ...prev, periodo: e.target.value }))}
-                          bg="bg.muted"
-                        />
-                      </FieldRoot>
-                    </HStack>
+                      </Box>
+                    ))}
+                    <Button size="sm" variant="ghost" colorPalette="teal" alignSelf="flex-start" onClick={agregarFactura}>
+                      + Agregar factura
+                    </Button>
                   </Stack>
                 </Box>
               )}

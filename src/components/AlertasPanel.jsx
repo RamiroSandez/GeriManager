@@ -129,7 +129,7 @@ export default function AlertasPanel() {
     const cumpleanos = (pacientesData ?? []).filter(p => p.fecha_nacimiento?.slice(5) === todayMMDD)
 
     // --- Amparos sin actualizar (>30 días) ---
-    const tipoLabel = { resumen_historia_clinica: "Resumen HC", presupuesto: "Presupuesto", informe_deuda: "Informe Deuda", propuesta_prestaciones: "Propuesta" }
+    const tipoLabel = { resumen_historia_clinica: "Resumen HC", presupuesto: "Presupuesto", informe_deuda: "Informe Deuda", recibo_pago: "Recibo de Pago", propuesta_prestaciones: "Propuesta" }
     const alertasAmparos = (amparosData ?? []).map(a => ({
       id: a.id, paciente: a.Pacientes?.Nombre_Completo, pacienteId: a.Pacientes?.id,
       tipo: tipoLabel[a.tipo] ?? a.tipo,

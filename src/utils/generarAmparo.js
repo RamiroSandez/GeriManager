@@ -1,5 +1,66 @@
 import { supabase } from "../services/supabase"
 
+// ─── Números a letras (para montos en pesos) ─────────────────────────────────
+
+const _U = ["","UN","DOS","TRES","CUATRO","CINCO","SEIS","SIETE","OCHO","NUEVE","DIEZ","ONCE","DOCE","TRECE","CATORCE","QUINCE","DIECISÉIS","DIECISIETE","DIECIOCHO","DIECINUEVE"]
+const _V = ["VEINTE","VEINTIÚN","VEINTIDÓS","VEINTITRÉS","VEINTICUATRO","VEINTICINCO","VEINTISÉIS","VEINTISIETE","VEINTIOCHO","VEINTINUEVE"]
+const _D = ["","","VEINTE","TREINTA","CUARENTA","CINCUENTA","SESENTA","SETENTA","OCHENTA","NOVENTA"]
+const _C = ["","CIENTO","DOSCIENTOS","TRESCIENTOS","CUATROCIENTOS","QUINIENTOS","SEISCIENTOS","SETECIENTOS","OCHOCIENTOS","NOVECIENTOS"]
+
+const _menorMil = (n) => {
+  if (n === 0) return ""
+  if (n === 100) return "CIEN"
+  const c = Math.floor(n / 100), r = n % 100
+  let s = c > 0 ? _C[c] : ""
+  if (r > 0) {
+    if (s) s += " "
+    if (r < 20) s += _U[r]
+    else if (r < 30) s += _V[r - 20]
+    else { s += _D[Math.floor(r / 10)]; if (r % 10 > 0) s += " Y " + _U[r % 10] }
+  }
+  return s
+}
+
+const numeroALetras = (input) => {
+  const n = parseInt(String(input).replace(/[.,\s]/g, ""))
+  if (!n || isNaN(n)) return ""
+  const mill = Math.floor(n / 1_000_000)
+  const miles = Math.floor((n % 1_000_000) / 1_000)
+  const resto = n % 1_000
+  const partes = []
+  if (mill === 1) partes.push("UN MILLÓN")
+  else if (mill > 1) partes.push(_menorMil(mill) + " MILLONES")
+  if (miles === 1) partes.push("MIL")
+  else if (miles > 1) partes.push(_menorMil(miles) + " MIL")
+  if (resto > 0) partes.push(_menorMil(resto))
+  return partes.join(" ") + " PESOS"
+}
+
+const formatMiles = (valor) => {
+  const n = parseInt(String(valor).replace(/[.,\s]/g, ""))
+  return isNaN(n) ? String(valor ?? "") : new Intl.NumberFormat("es-AR").format(n)
+}
+
+const MESES_LARGOS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
+
+const fechaLarga = () => {
+  const d = new Date()
+  return `${d.getDate()} de ${MESES_LARGOS[d.getMonth()]} ${d.getFullYear()}`
+}
+
+const formatFechaCorta = (iso) => {
+  if (!iso) return ""
+  const [y, m, d] = iso.split("-")
+  return `${d}-${m}-${y}`
+}
+
+const direccionCompleta = (geriatrico) => {
+  const partes = [geriatrico.direccion, geriatrico.localidad].filter(Boolean)
+  let linea = partes.join(" – ")
+  if (geriatrico.telefono) linea += (linea ? " – " : "") + `Teléfono ${geriatrico.telefono}`
+  return linea
+}
+
 // ─── Estilos compartidos ─────────────────────────────────────────────────────
 
 const css = `
@@ -145,6 +206,56 @@ const css = `
   .firma-box { text-align: center; }
   .firma-box .linea { border-top: 1.5px solid #222; padding-top: 6px; margin-top: 48px; }
   .firma-box .lbl { font-size: 9.5pt; color: #555; }
+
+  /* Informe de deuda / Recibo de pago */
+  .hdr-deuda {
+    font-size: 15pt;
+    font-weight: bold;
+    letter-spacing: 0.12em;
+    color: #963634;
+    margin-bottom: 4px;
+  }
+  .direccion-deuda {
+    font-size: 9pt;
+    color: #963634;
+    margin-bottom: 22px;
+  }
+  .campo-linea {
+    font-size: 10.5pt;
+    margin-bottom: 10px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .tabla-facturas th, .tabla-facturas td {
+    border: 1px solid #333;
+    padding: 8px 10px;
+    font-size: 9.5pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  .tabla-facturas th { font-weight: bold; background: #fff; }
+  .tabla-facturas tr:nth-child(even) { background: #fff; }
+  .tabla-total { width: auto; margin: 4px 0 24px 0; }
+  .tabla-total td {
+    border: 1px solid #333;
+    padding: 8px 16px;
+    font-weight: bold;
+    font-size: 10.5pt;
+  }
+  .texto-deuda {
+    font-size: 10.5pt;
+    line-height: 1.6;
+    text-align: justify;
+    margin-bottom: 14px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .firma-deuda {
+    margin-top: 40px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .firma-deuda div { font-size: 10.5pt; }
 `
 
 // ─── Bloques reutilizables ────────────────────────────────────────────────────
@@ -386,13 +497,8 @@ function templateResumenHistoriaClinica(p, geriatrico, fecha) {
 // ─── Plantilla 2: Presupuesto ────────────────────────────────────────────────
 
 function templatePresupuesto(p, geriatrico, fecha, items) {
-  const formatMontoItem = (monto) => {
-    const n = parseInt(String(monto).replace(/[.,\s]/g, ""))
-    return isNaN(n) ? monto : new Intl.NumberFormat("es-AR").format(n)
-  }
-
   const filas = items.map(({ mes, monto }) =>
-    `<tr><td>${mes}</td><td style="text-align:right;">$${formatMontoItem(monto)}</td></tr>`
+    `<tr><td>${mes}</td><td style="text-align:right;">$${formatMiles(monto)}</td></tr>`
   ).join("")
 
   const totalNum = items.reduce((acc, i) => {
@@ -437,53 +543,97 @@ function templatePresupuesto(p, geriatrico, fecha, items) {
   `
 }
 
-// ─── Plantilla 3: Informe de Deuda ──────────────────────────────────────────
+// ─── Plantillas 3 y 3b: Informe de Deuda / Recibo de Pago ───────────────────
 
-function templateInformeDeuda(p, geriatrico, fecha, extras) {
+const PARRAFO_MORA = `
+  Como consecuencias de los constantes aumentos de costos que debemos afrontar para brindar los servicios
+  a los residentes, la falta de pago en tiempo y forma de las facturas ocasiona un grave perjuicio financiero
+  a esta institución, por lo que se solicita se adopten las medidas para obtener el pronto pago de las mismas
+  y se requiere que se dispongan las medidas necesarias para evitar se continúen produciendo reiterados
+  retrasos en los pagos estableciendo la implementación de los mecanismos que resulten conducentes al pago
+  de las mismas en tiempo y forma.
+`
+
+function documentoFacturas(p, geriatrico, { lineaMonto, labelTotal, totalValor, mostrarAbonado }) {
+  const facturas = geriatrico._facturas || []
+
+  const filas = facturas.map(f => `
+    <tr>
+      <td>${f.periodo || "—"}</td>
+      <td>${f.factura || "—"}</td>
+      <td style="text-align:right;">${f.importeTotal ? formatMiles(f.importeTotal) : "—"}</td>
+      <td>${f.fechaPresentada ? formatFechaCorta(f.fechaPresentada) : "—"}</td>
+      ${mostrarAbonado ? `<td style="text-align:right;">${f.importeAbonado ? formatMiles(f.importeAbonado) : ""}</td>` : ""}
+    </tr>
+  `).join("")
+
   return `
     ${htmlHead()}
-    ${encabezado(geriatrico, "Informe de Deuda")}
-    ${fechaDiv(fecha)}
-    ${datosPaciente(p)}
 
-    <div class="seccion">
-      <div class="seccion-titulo">Detalle de la Deuda</div>
-      <div class="grilla">
-        <div>
-          <div class="campo-lbl">Período Adeudado</div>
-          <div class="campo-val">${extras.periodo || "—"}</div>
-        </div>
-        <div>
-          <div class="campo-lbl">Obra Social</div>
-          <div class="campo-val">${p.obra_social || "—"}</div>
-        </div>
-        <div>
-          <div class="campo-lbl">Monto Adeudado</div>
-          <div class="campo-val" style="font-size:13pt;font-weight:bold;">${extras.monto_numerico || "—"}</div>
-        </div>
-        <div>
-          <div class="campo-lbl">Monto en Letras</div>
-          <div class="campo-val">${extras.monto_letras || "—"}</div>
-        </div>
-      </div>
+    <div class="hdr-deuda">${geriatrico.nombre || "Residencia Geriátrica"}</div>
+    <div class="direccion-deuda">${direccionCompleta(geriatrico)}</div>
+
+    <div class="campo-linea">Fecha: ${fechaLarga()}</div>
+    <div class="campo-linea">Paciente: ${p.nombre}</div>
+    <div class="campo-linea">${lineaMonto}</div>
+
+    <div class="campo-linea">Informamos detalle:</div>
+
+    <table class="tabla-facturas">
+      <thead>
+        <tr>
+          <th>Período Prestación</th>
+          <th>Factura Nro</th>
+          <th>Importe Total Factura</th>
+          <th>Presentada el día</th>
+          ${mostrarAbonado ? "<th>Importe Abonado</th>" : ""}
+        </tr>
+      </thead>
+      <tbody>${filas}</tbody>
+    </table>
+
+    <table class="tabla-total">
+      <tr><td>${labelTotal}</td><td>$${formatMiles(totalValor)}</td></tr>
+    </table>
+
+    <div class="texto-deuda">La liquidación es sin calcular intereses.</div>
+    <div class="texto-deuda">${PARRAFO_MORA}</div>
+
+    <div class="campo-linea">Saluda atentamente,</div>
+
+    <div class="firma-deuda">
+      ${geriatrico.firma_url ? `<img src="${geriatrico.firma_url}" alt="Firma" style="max-width:180px; max-height:70px; display:block; margin-bottom:4px;" />` : ""}
+      <div style="font-weight:bold;">${geriatrico.nombre_director || "Director/a"}</div>
+      <div>Director/a Institucional</div>
     </div>
 
-    <div class="seccion">
-      <div class="texto">
-        Por medio del presente, la dirección de <strong>${geriatrico.nombre || "la residencia"}</strong> informa
-        a la Obra Social <strong>${p.obra_social || "indicada"}</strong> que, a la fecha, se registra una deuda
-        en concepto de prestaciones geriátricas correspondiente al período <strong>${extras.periodo || "indicado"}</strong>,
-        por la suma total de <strong>${extras.monto_numerico || "—"}</strong> (${extras.monto_letras || "—"}).
-      </div>
-      <div class="texto">
-        Se solicita la regularización de la situación a la brevedad posible,
-        a fin de garantizar la continuidad de las prestaciones al afiliado.
-      </div>
-    </div>
-
-    ${firmasDobles(geriatrico)}
     ${htmlFoot()}
   `
+}
+
+function templateInformeDeuda(p, geriatrico, fecha, extras) {
+  const facturas = extras.facturas || []
+  const totalAdeudado = facturas.reduce((acc, f) => acc + (parseInt(String(f.importeTotal).replace(/\D/g, "")) || 0), 0)
+  const letras = numeroALetras(totalAdeudado)
+
+  return documentoFacturas(p, { ...geriatrico, _facturas: facturas }, {
+    lineaMonto: `Total Adeudado: ${letras ? `${letras}.` : "—"}`,
+    labelTotal: "TOTAL ADEUDADO",
+    totalValor: totalAdeudado,
+    mostrarAbonado: false,
+  })
+}
+
+function templateReciboPago(p, geriatrico, fecha, extras) {
+  const facturas = extras.facturas || []
+  const totalRecibido = facturas.reduce((acc, f) => acc + (parseInt(String(f.importeAbonado).replace(/\D/g, "")) || 0), 0)
+
+  return documentoFacturas(p, { ...geriatrico, _facturas: facturas }, {
+    lineaMonto: `Recibimos la suma de $${formatMiles(totalRecibido)}`,
+    labelTotal: "TOTAL",
+    totalValor: totalRecibido,
+    mostrarAbonado: true,
+  })
 }
 
 // ─── Plantilla 4: Propuesta de Prestaciones ─────────────────────────────────
@@ -584,6 +734,9 @@ export function generarAmparo(tipo, paciente, geriatrico, extras = {}) {
   const g = {
     nombre: geriatrico?.nombre || "",
     nombre_director: geriatrico?.nombre_director || "",
+    direccion: geriatrico?.direccion || "",
+    localidad: geriatrico?.localidad || "",
+    telefono: geriatrico?.telefono || "",
     firma_url: geriatrico?.firma_path
       ? supabase.storage.from("documentos").getPublicUrl(geriatrico.firma_path).data.publicUrl
       : "",
@@ -606,6 +759,9 @@ export function generarAmparo(tipo, paciente, geriatrico, extras = {}) {
 
     case "informe_deuda":
       return templateInformeDeuda(p, g, fecha, extras)
+
+    case "recibo_pago":
+      return templateReciboPago(p, g, fecha, extras)
 
     case "propuesta_prestaciones":
       return templatePropuestaPrestaciones(p, g, fecha)
