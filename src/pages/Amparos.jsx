@@ -2,8 +2,8 @@
 import { supabase } from "../services/supabase"
 import { useAuth } from "../contexts/AuthContext"
 import {
-  Box, Button, Card, FieldLabel, FieldRoot, Grid,
-  Heading, HStack, Input, NativeSelect, Spinner, Stack, Text,
+  Box, Button, Card, CheckboxControl, CheckboxHiddenInput, CheckboxLabel, CheckboxRoot,
+  FieldLabel, FieldRoot, Grid, Heading, HStack, Input, NativeSelect, Spinner, Stack, Text,
 } from "@chakra-ui/react"
 import { Toaster, toaster } from "../components/toaster"
 import { TIPOS_AMPARO, validarCamposAmparo } from "../utils/constants"
@@ -52,6 +52,8 @@ const itemPresupuestoVacio = () => [{ id: crypto.randomUUID(), monto: "" }]
 
 const facturaVacia = () => ({ id: crypto.randomUUID(), factura: "", importeTotal: "", fechaPresentada: "", importeAbonado: "" })
 
+const formatMilesInput = (digitos) => digitos ? new Intl.NumberFormat("es-AR").format(Number(digitos)) : ""
+
 const esTipoFacturas = (tipo) => tipo === "informe_deuda" || tipo === "recibo_pago"
 
 const facturasParaGuardar = (facturas) =>
@@ -81,6 +83,7 @@ export default function Amparos() {
     ...f,
     periodo: formatearMesCorto(sumarMeses(mesInicioDeuda, idx)),
   }))
+  const [incluirFirmaDeuda, setIncluirFirmaDeuda] = useState(true)
   const [previsualizando, setPrevisualizando] = useState(false)
   const [htmlPreview, setHtmlPreview] = useState("")
   const [guardandoDoc, setGuardandoDoc] = useState(false)
@@ -154,7 +157,7 @@ export default function Amparos() {
       const extras = tipoSeleccionado === "presupuesto"
         ? { item_presupuesto: itemsConMes.filter(i => i.monto).map(i => `${i.mes.replace(/\//g, "-")}: $${i.monto}`).join("<br>") }
         : esTipoFacturas(tipoSeleccionado)
-        ? { facturas: facturasParaGuardar(facturasConPeriodo) }
+        ? { facturas: facturasParaGuardar(facturasConPeriodo), incluirFirma: incluirFirmaDeuda }
         : {}
       const html = generarAmparo(tipoSeleccionado, paciente, geriatrico, extras)
       setHtmlPreview(html)
@@ -182,7 +185,7 @@ export default function Amparos() {
       const itemsStr = tipoSeleccionado === "presupuesto"
         ? itemsConMes.filter(i => i.monto).map(i => `${i.mes.replace(/\//g, "-")}: $${i.monto}`).join("<br>")
         : esTipoFacturas(tipoSeleccionado)
-        ? JSON.stringify({ facturas: facturasParaGuardar(facturasConPeriodo) })
+        ? JSON.stringify({ facturas: facturasParaGuardar(facturasConPeriodo), incluirFirma: incluirFirmaDeuda })
         : null
       const { error } = await supabase.from("amparos").insert({
         geriatrico_id: geriatrico.id,
@@ -197,6 +200,7 @@ export default function Amparos() {
       setItemsPresupuesto(itemPresupuestoVacio())
       setMesInicioDeuda(mesActualISO())
       setFacturasDeuda([facturaVacia()])
+      setIncluirFirmaDeuda(true)
       setPacienteId("")
       setTipoSeleccionado("")
       fetchAmparos()
@@ -221,7 +225,7 @@ export default function Amparos() {
     try {
       let extras = {}
       if (tipo === "presupuesto" && amparo.observaciones) extras = { item_presupuesto: amparo.observaciones }
-      else if (esTipoFacturas(tipo) && amparo.observaciones) { try { const r = JSON.parse(amparo.observaciones); extras = { facturas: r.facturas || [] } } catch {} }
+      else if (esTipoFacturas(tipo) && amparo.observaciones) { try { const r = JSON.parse(amparo.observaciones); extras = { facturas: r.facturas || [], incluirFirma: r.incluirFirma } } catch {} }
       const html = generarAmparo(tipo, paciente, geriatrico, extras)
       const html2pdf = (await import("html2pdf.js")).default
       const container = document.createElement("div")
@@ -248,7 +252,7 @@ export default function Amparos() {
         const tipo = amparo.tipo || TIPOS_AMPARO[0].key
         let extras = {}
         if (tipo === "presupuesto" && amparo.observaciones) extras = { item_presupuesto: amparo.observaciones }
-        else if (esTipoFacturas(tipo) && amparo.observaciones) { try { const r = JSON.parse(amparo.observaciones); extras = { facturas: r.facturas || [] } } catch {} }
+        else if (esTipoFacturas(tipo) && amparo.observaciones) { try { const r = JSON.parse(amparo.observaciones); extras = { facturas: r.facturas || [], incluirFirma: r.incluirFirma } } catch {} }
         try {
           const html = generarAmparo(tipo, paciente, geriatrico, extras)
           const container = document.createElement("div")
@@ -370,8 +374,8 @@ export default function Amparos() {
                             />
                           </HStack>
                           <Input
-                            size="sm" placeholder="Importe total" bg="bg.panel" inputMode="numeric"
-                            value={f.importeTotal}
+                            size="sm" placeholder="$ Importe total" bg="bg.panel" inputMode="numeric"
+                            value={f.importeTotal ? `$${formatMilesInput(f.importeTotal)}` : ""}
                             onChange={e => setCampoFactura(f.id, "importeTotal", e.target.value.replace(/\D/g, ""))}
                           />
                           <Input
@@ -381,8 +385,8 @@ export default function Amparos() {
                           />
                           {tipoSeleccionado === "recibo_pago" && (
                             <Input
-                              size="sm" placeholder="Importe abonado" bg="bg.panel" inputMode="numeric"
-                              value={f.importeAbonado}
+                              size="sm" placeholder="$ Importe abonado" bg="bg.panel" inputMode="numeric"
+                              value={f.importeAbonado ? `$${formatMilesInput(f.importeAbonado)}` : ""}
                               onChange={e => setCampoFactura(f.id, "importeAbonado", e.target.value.replace(/\D/g, ""))}
                             />
                           )}
@@ -397,6 +401,15 @@ export default function Amparos() {
                     <Button size="sm" variant="ghost" colorPalette="teal" alignSelf="flex-start" onClick={agregarFactura}>
                       + Agregar factura
                     </Button>
+                    <CheckboxRoot
+                      mt={2}
+                      checked={incluirFirmaDeuda}
+                      onCheckedChange={e => setIncluirFirmaDeuda(!!e.checked)}
+                    >
+                      <CheckboxHiddenInput />
+                      <CheckboxControl />
+                      <CheckboxLabel fontSize="sm">Incluir firma digital</CheckboxLabel>
+                    </CheckboxRoot>
                   </Stack>
                 </Box>
               )}

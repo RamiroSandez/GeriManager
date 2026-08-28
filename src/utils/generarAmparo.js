@@ -554,7 +554,7 @@ const PARRAFO_MORA = `
   de las mismas en tiempo y forma.
 `
 
-function documentoFacturas(p, geriatrico, { lineaMonto, labelTotal, totalValor, mostrarAbonado }) {
+function documentoFacturas(p, geriatrico, { lineaMonto, labelTotal, totalValor, mostrarAbonado, incluirFirma }) {
   const facturas = geriatrico._facturas || []
 
   const filas = facturas.map(f => `
@@ -602,7 +602,7 @@ function documentoFacturas(p, geriatrico, { lineaMonto, labelTotal, totalValor, 
     <div class="campo-linea">Saluda atentamente,</div>
 
     <div class="firma-deuda">
-      ${geriatrico.firma_url ? `<img src="${geriatrico.firma_url}" alt="Firma" style="max-width:180px; max-height:70px; display:block; margin-bottom:4px;" />` : ""}
+      ${incluirFirma && geriatrico.firma_url ? `<img src="${geriatrico.firma_url}" alt="Firma" style="max-width:180px; max-height:70px; display:block; margin-bottom:4px;" />` : ""}
       <div style="font-weight:bold;">${geriatrico.nombre_director || "Director/a"}</div>
       <div>Director/a Institucional</div>
     </div>
@@ -621,6 +621,7 @@ function templateInformeDeuda(p, geriatrico, fecha, extras) {
     labelTotal: "TOTAL ADEUDADO",
     totalValor: totalAdeudado,
     mostrarAbonado: false,
+    incluirFirma: extras.incluirFirma !== false,
   })
 }
 
@@ -633,6 +634,7 @@ function templateReciboPago(p, geriatrico, fecha, extras) {
     labelTotal: "TOTAL",
     totalValor: totalRecibido,
     mostrarAbonado: true,
+    incluirFirma: extras.incluirFirma !== false,
   })
 }
 
