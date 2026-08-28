@@ -84,6 +84,7 @@ export default function Amparos() {
     periodo: formatearMesCorto(sumarMeses(mesInicioDeuda, idx)),
   }))
   const [incluirFirmaDeuda, setIncluirFirmaDeuda] = useState(true)
+  const [editandoId, setEditandoId] = useState(null)
   const [previsualizando, setPrevisualizando] = useState(false)
   const [htmlPreview, setHtmlPreview] = useState("")
   const [guardandoDoc, setGuardandoDoc] = useState(false)
@@ -98,6 +99,67 @@ export default function Amparos() {
     setFacturasDeuda(prev => prev.map(f => f.id === id ? { ...f, [campo]: val } : f))
   const agregarFactura = () => setFacturasDeuda(prev => [...prev, facturaVacia()])
   const quitarFactura = (id) => setFacturasDeuda(prev => prev.filter(f => f.id !== id))
+
+  const cancelarEdicion = () => {
+    setEditandoId(null)
+    setPacienteId("")
+    setTipoSeleccionado("")
+    setMesInicioPresupuesto(mesActualISO())
+    setItemsPresupuesto(itemPresupuestoVacio())
+    setMesInicioDeuda(mesActualISO())
+    setFacturasDeuda([facturaVacia()])
+    setIncluirFirmaDeuda(true)
+  }
+
+  const iniciarEdicion = (amparo) => {
+    const tipo = amparo.tipo
+    setEditandoId(amparo.id)
+    setPacienteId(String(amparo.paciente_id))
+    setTipoSeleccionado(tipo)
+    setHtmlPreview("")
+
+    if (tipo === "presupuesto") {
+      const items = (amparo.observaciones || "")
+        .split("<br>")
+        .filter(Boolean)
+        .map(linea => {
+          const [mesRaw, montoRaw] = linea.split(": $")
+          return { mes: (mesRaw || "").replace(/-/g, "/"), monto: montoRaw || "" }
+        })
+      if (items.length > 0) {
+        const [nombreMes, anio] = items[0].mes.split("/")
+        const idxMes = MESES.indexOf(nombreMes)
+        if (idxMes >= 0 && anio) setMesInicioPresupuesto(`${anio}-${String(idxMes + 1).padStart(2, "0")}`)
+        setItemsPresupuesto(items.map(i => ({ id: crypto.randomUUID(), monto: i.monto })))
+      } else {
+        setItemsPresupuesto(itemPresupuestoVacio())
+      }
+    }
+
+    if (esTipoFacturas(tipo)) {
+      try {
+        const r = JSON.parse(amparo.observaciones || "{}")
+        const facturas = r.facturas || []
+        if (facturas.length > 0) {
+          const [nombreMes, anio] = (facturas[0].periodo || "").split(" ")
+          const idxMes = MESES.indexOf(nombreMes)
+          if (idxMes >= 0 && anio) setMesInicioDeuda(`20${anio}-${String(idxMes + 1).padStart(2, "0")}`)
+          setFacturasDeuda(facturas.map(f => ({
+            id: crypto.randomUUID(),
+            factura: (f.factura || "").replace(/^B-00000/, ""),
+            importeTotal: f.importeTotal || "",
+            fechaPresentada: f.fechaPresentada || "",
+            importeAbonado: f.importeAbonado || "",
+          })))
+        } else {
+          setFacturasDeuda([facturaVacia()])
+        }
+        setIncluirFirmaDeuda(r.incluirFirma !== false)
+      } catch {
+        setFacturasDeuda([facturaVacia()])
+      }
+    }
+  }
 
   const fetchAmparos = async () => {
     const { data } = await supabase
@@ -147,7 +209,7 @@ export default function Amparos() {
       toaster.create({ title: "Faltan datos del paciente", description: `Completá: ${faltantes.join(", ")}`, type: "warning", duration: 6000 })
       return
     }
-    const yaExiste = amparos.some(a => a.paciente_id === paciente.id && a.tipo === tipoSeleccionado)
+    const yaExiste = !editandoId && amparos.some(a => a.paciente_id === paciente.id && a.tipo === tipoSeleccionado)
     if (yaExiste) {
       toaster.create({ title: "Ya existe este documento", description: "Eliminalo desde el historial para poder regenerarlo.", type: "warning", duration: 5000 })
       return
@@ -187,15 +249,19 @@ export default function Amparos() {
         : esTipoFacturas(tipoSeleccionado)
         ? JSON.stringify({ facturas: facturasParaGuardar(facturasConPeriodo), incluirFirma: incluirFirmaDeuda })
         : null
-      const { error } = await supabase.from("amparos").insert({
-        geriatrico_id: geriatrico.id,
-        paciente_id: paciente.id,
-        tipo: tipoSeleccionado,
-        estado: "amparo_generado",
-        observaciones: itemsStr,
-      })
+      const { error } = editandoId
+        ? await supabase.from("amparos").update({ observaciones: itemsStr }).eq("id", editandoId)
+        : await supabase.from("amparos").insert({
+            geriatrico_id: geriatrico.id,
+            paciente_id: paciente.id,
+            tipo: tipoSeleccionado,
+            estado: "amparo_generado",
+            observaciones: itemsStr,
+          })
       if (error) throw new Error(error.message)
+      const fueEdicion = !!editandoId
       setHtmlPreview("")
+      setEditandoId(null)
       setMesInicioPresupuesto(mesActualISO())
       setItemsPresupuesto(itemPresupuestoVacio())
       setMesInicioDeuda(mesActualISO())
@@ -204,7 +270,7 @@ export default function Amparos() {
       setPacienteId("")
       setTipoSeleccionado("")
       fetchAmparos()
-      toaster.create({ title: "Documento guardado", type: "success", duration: 2000 })
+      toaster.create({ title: fueEdicion ? "Documento actualizado" : "Documento guardado", type: "success", duration: 2000 })
     } catch (err) {
       toaster.create({ title: "Error al guardar", description: err.message, type: "error", duration: 5000 })
     }
@@ -314,12 +380,21 @@ export default function Amparos() {
       {!htmlPreview && (
         <Card.Root borderRadius="xl" boxShadow="md" mb={6} border="1px solid" borderColor="teal.200">
           <Card.Body>
-            <Text fontWeight="600" color="text.main" mb={4}>Nuevo documento</Text>
+            <HStack justify="space-between" mb={4}>
+              <Text fontWeight="600" color="text.main">
+                {editandoId ? `Editando: ${tipoLabel(tipoSeleccionado)}` : "Nuevo documento"}
+              </Text>
+              {editandoId && (
+                <Button size="xs" variant="ghost" colorPalette="gray" onClick={cancelarEdicion}>
+                  Cancelar edición
+                </Button>
+              )}
+            </HStack>
             <Stack gap={4}>
               <HStack gap={4} flexWrap="wrap" alignItems="flex-end">
                 <FieldRoot flex={1} minW="220px">
                   <FieldLabel fontSize="sm">Paciente</FieldLabel>
-                  <NativeSelect.Root>
+                  <NativeSelect.Root disabled={!!editandoId}>
                     <NativeSelect.Field value={pacienteId} onChange={e => setPacienteId(e.target.value)} bg="bg.muted">
                       <option value="">Seleccionar paciente...</option>
                       {pacientes.map(p => (
@@ -331,7 +406,7 @@ export default function Amparos() {
                 </FieldRoot>
                 <FieldRoot flex={1} minW="220px">
                   <FieldLabel fontSize="sm">Tipo de documento</FieldLabel>
-                  <NativeSelect.Root>
+                  <NativeSelect.Root disabled={!!editandoId}>
                     <NativeSelect.Field value={tipoSeleccionado} onChange={e => setTipoSeleccionado(e.target.value)} bg="bg.muted">
                       <option value="">Seleccionar tipo...</option>
                       {tiposDisponibles.map(t => (
@@ -485,7 +560,7 @@ export default function Amparos() {
                   Cancelar
                 </Button>
                 <Button size="sm" colorPalette="teal" onClick={guardarDocumento} loading={guardandoDoc}>
-                  Guardar documento
+                  {editandoId ? "Guardar cambios" : "Guardar documento"}
                 </Button>
               </HStack>
             </HStack>
@@ -545,6 +620,9 @@ export default function Amparos() {
                       <HStack gap={1}>
                         <Button size="xs" colorPalette="teal" variant="ghost" onClick={() => descargarPDFDirecto(a)} loading={descargandoZip === a.id}>
                           {tipoLabel(a.tipo)}
+                        </Button>
+                        <Button size="xs" colorPalette="teal" variant="ghost" onClick={() => iniciarEdicion(a)}>
+                          ✏
                         </Button>
                         <Button size="xs" colorPalette="red" variant="ghost" onClick={() => eliminarAmparo(a.id)} loading={eliminando === a.id}>
                           ✕

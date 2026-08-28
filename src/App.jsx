@@ -11,6 +11,7 @@ import Login from "./pages/Login"
 import Registro from "./pages/Registro"
 import Equipo from "./pages/Equipo"
 import Amparos from "./pages/Amparos"
+import Presentaciones from "./pages/Presentaciones"
 import Institucion from "./pages/Institucion"
 import Medicamentos from "./pages/Medicamentos"
 import ResetPassword from "./pages/ResetPassword"
@@ -39,6 +40,7 @@ function App() {
                     <Route path="/paciente/:id" element={<FichaPaciente />} />
                     <Route path="/gastos" element={<RolRoute roles={["admin", "gerente"]}><Gastos /></RolRoute>} />
                     <Route path="/amparos" element={<Amparos />} />
+                    <Route path="/presentaciones" element={<Presentaciones />} />
                     <Route path="/equipo" element={<RolRoute roles={["admin"]}><Equipo /></RolRoute>} />
                     <Route path="/institucion" element={<RolRoute roles={["admin"]}><Institucion /></RolRoute>} />
                     <Route path="/medicamentos" element={<RolRoute roles={["admin", "gerente"]}><Medicamentos /></RolRoute>} />
