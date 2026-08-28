@@ -58,7 +58,7 @@ const facturasParaGuardar = (facturas) =>
   facturas
     .filter(f => f.importeTotal || f.importeAbonado)
     .map(({ periodo, factura, importeTotal, fechaPresentada, importeAbonado }) =>
-      ({ periodo, factura, importeTotal, fechaPresentada, importeAbonado }))
+      ({ periodo, factura: factura ? `B-00000${factura}` : "", importeTotal, fechaPresentada, importeAbonado }))
 
 export default function Amparos() {
   const { geriatrico } = useAuth()
@@ -361,11 +361,14 @@ export default function Amparos() {
                           templateColumns={{ base: "1fr", md: tipoSeleccionado === "recibo_pago" ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr" }}
                           gap={2}
                         >
-                          <Input
-                            size="sm" placeholder="N° Factura" bg="bg.panel"
-                            value={f.factura}
-                            onChange={e => setCampoFactura(f.id, "factura", e.target.value)}
-                          />
+                          <HStack gap={1}>
+                            <Text fontSize="sm" color="text.muted" flexShrink={0}>B-00000</Text>
+                            <Input
+                              size="sm" placeholder="232" bg="bg.panel" inputMode="numeric" maxLength={3}
+                              value={f.factura}
+                              onChange={e => setCampoFactura(f.id, "factura", e.target.value.replace(/\D/g, "").slice(0, 3))}
+                            />
+                          </HStack>
                           <Input
                             size="sm" placeholder="Importe total" bg="bg.panel" inputMode="numeric"
                             value={f.importeTotal}
