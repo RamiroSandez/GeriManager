@@ -27,15 +27,14 @@ async function textoAPdfBytes(texto) {
   return pdf.output("arraybuffer")
 }
 
+// Nuestros propios PDFs generados (nunca vienen encriptados) se pueden copiar tal cual.
 async function copiarPaginasDePdf(PDFDocument, mergedDoc, bytes) {
-  const doc = await PDFDocument.load(bytes, { ignoreEncryption: true })
+  const doc = await PDFDocument.load(bytes)
   const paginas = await mergedDoc.copyPages(doc, doc.getPageIndices())
   paginas.forEach(p => mergedDoc.addPage(p))
 }
 
-async function agregarImagenComoPagina(mergedDoc, file) {
-  const bytes = await file.arrayBuffer()
-  const esPng = file.type === "image/png"
+async function agregarImagenBytesComoPagina(mergedDoc, bytes, esPng) {
   const img = esPng ? await mergedDoc.embedPng(bytes) : await mergedDoc.embedJpg(bytes)
 
   const pagina = mergedDoc.addPage([595.28, 841.89]) // A4 en puntos
@@ -54,6 +53,33 @@ async function agregarImagenComoPagina(mergedDoc, file) {
   })
 }
 
+async function agregarImagenArchivoComoPagina(mergedDoc, file) {
+  const bytes = await file.arrayBuffer()
+  await agregarImagenBytesComoPagina(mergedDoc, bytes, file.type === "image/png")
+}
+
+// PDFs subidos por el usuario (ej: facturas de ARCA) pueden venir encriptados/protegidos.
+// pdf-lib no sabe desencriptar el contenido de esas paginas, asi que las renderizamos
+// con pdf.js (que si soporta PDFs protegidos) y las insertamos como imagen.
+async function rasterizarPdfYAgregar(mergedDoc, bytes) {
+  const pdfjsLib = await import("pdfjs-dist")
+  const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
+
+  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i)
+    const viewport = page.getViewport({ scale: 2 })
+    const canvas = document.createElement("canvas")
+    canvas.width = viewport.width
+    canvas.height = viewport.height
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.92))
+    const imgBytes = await blob.arrayBuffer()
+    await agregarImagenBytesComoPagina(mergedDoc, imgBytes, false)
+  }
+}
+
 // entradas: [{ facturaFile, constanciaTipo: "imagen" | "texto", constanciaFile, constanciaTexto }]
 export async function generarPdfCombinado(entradas) {
   const { PDFDocument } = await import("pdf-lib")
@@ -62,15 +88,15 @@ export async function generarPdfCombinado(entradas) {
   for (const entrada of entradas) {
     if (entrada.facturaFile) {
       const bytes = await entrada.facturaFile.arrayBuffer()
-      await copiarPaginasDePdf(PDFDocument, mergedDoc, bytes)
+      await rasterizarPdfYAgregar(mergedDoc, bytes)
     }
 
     if (entrada.constanciaTipo === "imagen" && entrada.constanciaFile) {
       if (entrada.constanciaFile.type === "application/pdf") {
         const bytes = await entrada.constanciaFile.arrayBuffer()
-        await copiarPaginasDePdf(PDFDocument, mergedDoc, bytes)
+        await rasterizarPdfYAgregar(mergedDoc, bytes)
       } else {
-        await agregarImagenComoPagina(mergedDoc, entrada.constanciaFile)
+        await agregarImagenArchivoComoPagina(mergedDoc, entrada.constanciaFile)
       }
     } else if (entrada.constanciaTipo === "texto" && entrada.constanciaTexto?.trim()) {
       const bytes = await textoAPdfBytes(entrada.constanciaTexto.trim())
