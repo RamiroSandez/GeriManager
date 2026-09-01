@@ -28,7 +28,7 @@ async function textoAPdfBytes(texto) {
 }
 
 async function copiarPaginasDePdf(PDFDocument, mergedDoc, bytes) {
-  const doc = await PDFDocument.load(bytes)
+  const doc = await PDFDocument.load(bytes, { ignoreEncryption: true })
   const paginas = await mergedDoc.copyPages(doc, doc.getPageIndices())
   paginas.forEach(p => mergedDoc.addPage(p))
 }
