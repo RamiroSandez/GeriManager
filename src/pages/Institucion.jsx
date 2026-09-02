@@ -27,7 +27,7 @@ export default function Institucion() {
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
 
   const firmaUrl = geriatrico?.firma_path
-    ? supabase.storage.from("documentos").getPublicUrl(geriatrico.firma_path).data.publicUrl
+    ? supabase.storage.from("firmas").getPublicUrl(geriatrico.firma_path).data.publicUrl
     : null
 
   const subirFirma = async (e) => {
@@ -40,9 +40,9 @@ export default function Institucion() {
     }
     setSubiendoFirma(true)
     const ext = file.name.split(".").pop()
-    const filePath = `firmas/${geriatrico.id}.${ext}`
+    const filePath = `${geriatrico.id}.${ext}`
     const { error: uploadError } = await supabase.storage
-      .from("documentos")
+      .from("firmas")
       .upload(filePath, file, { upsert: true })
     if (uploadError) {
       toaster.create({ title: "Error al subir la firma", description: uploadError.message, type: "error", duration: 4000 })
@@ -63,7 +63,7 @@ export default function Institucion() {
 
   const quitarFirma = async () => {
     if (geriatrico?.firma_path) {
-      await supabase.storage.from("documentos").remove([geriatrico.firma_path])
+      await supabase.storage.from("firmas").remove([geriatrico.firma_path])
     }
     const { error } = await supabase.from("geriatricos").update({ firma_path: null }).eq("id", geriatrico.id)
     if (error) {

@@ -740,7 +740,7 @@ export function generarAmparo(tipo, paciente, geriatrico, extras = {}) {
     localidad: geriatrico?.localidad || "",
     telefono: geriatrico?.telefono || "",
     firma_url: geriatrico?.firma_path
-      ? supabase.storage.from("documentos").getPublicUrl(geriatrico.firma_path).data.publicUrl
+      ? supabase.storage.from("firmas").getPublicUrl(geriatrico.firma_path).data.publicUrl
       : "",
   }
 
