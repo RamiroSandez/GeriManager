@@ -6,6 +6,7 @@ import {
   Grid, Heading, HStack, Input, Spinner, Stack, Text,
 } from "@chakra-ui/react"
 import { Toaster, toaster } from "../components/toaster"
+import { prepararFirma } from "../utils/prepararFirma"
 
 export default function Institucion() {
   const { geriatrico, user, refreshGeriatrico } = useAuth()
@@ -39,11 +40,11 @@ export default function Institucion() {
       return
     }
     setSubiendoFirma(true)
-    const ext = file.name.split(".").pop()
-    const filePath = `${geriatrico.id}.${ext}`
+    const archivoProcesado = await prepararFirma(file)
+    const filePath = `${geriatrico.id}.png`
     const { error: uploadError } = await supabase.storage
       .from("firmas")
-      .upload(filePath, file, { upsert: true })
+      .upload(filePath, archivoProcesado, { upsert: true, contentType: "image/png" })
     if (uploadError) {
       toaster.create({ title: "Error al subir la firma", description: uploadError.message, type: "error", duration: 4000 })
       setSubiendoFirma(false)
