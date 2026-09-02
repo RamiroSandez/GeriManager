@@ -700,7 +700,23 @@ function templatePropuestaPrestaciones(p, geriatrico, fecha) {
 
 // ─── Función principal ───────────────────────────────────────────────────────
 
-export function generarAmparo(tipo, paciente, geriatrico, extras = {}) {
+async function firmaComoDataUri(firmaPath) {
+  if (!firmaPath) return ""
+  try {
+    const { data, error } = await supabase.storage.from("firmas").download(firmaPath)
+    if (error || !data) return ""
+    return await new Promise(resolve => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result || "")
+      reader.onerror = () => resolve("")
+      reader.readAsDataURL(data)
+    })
+  } catch {
+    return ""
+  }
+}
+
+export async function generarAmparo(tipo, paciente, geriatrico, extras = {}) {
   const fecha = new Date().toLocaleDateString("es-AR")
   const edad = paciente.fecha_nacimiento
     ? Math.floor((Date.now() - new Date(paciente.fecha_nacimiento).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
@@ -739,9 +755,7 @@ export function generarAmparo(tipo, paciente, geriatrico, extras = {}) {
     direccion: geriatrico?.direccion || "",
     localidad: geriatrico?.localidad || "",
     telefono: geriatrico?.telefono || "",
-    firma_url: geriatrico?.firma_path
-      ? supabase.storage.from("firmas").getPublicUrl(geriatrico.firma_path).data.publicUrl
-      : "",
+    firma_url: await firmaComoDataUri(geriatrico?.firma_path),
   }
 
   switch (tipo) {

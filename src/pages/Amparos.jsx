@@ -221,7 +221,7 @@ export default function Amparos() {
         : esTipoFacturas(tipoSeleccionado)
         ? { facturas: facturasParaGuardar(facturasConPeriodo), incluirFirma: incluirFirmaDeuda }
         : {}
-      const html = generarAmparo(tipoSeleccionado, paciente, geriatrico, extras)
+      const html = await generarAmparo(tipoSeleccionado, paciente, geriatrico, extras)
       setHtmlPreview(html)
     } catch (err) {
       toaster.create({ title: "Error al previsualizar", description: err.message, type: "error", duration: 5000 })
@@ -292,7 +292,7 @@ export default function Amparos() {
       let extras = {}
       if (tipo === "presupuesto" && amparo.observaciones) extras = { item_presupuesto: amparo.observaciones }
       else if (esTipoFacturas(tipo) && amparo.observaciones) { try { const r = JSON.parse(amparo.observaciones); extras = { facturas: r.facturas || [], incluirFirma: r.incluirFirma } } catch {} }
-      const html = generarAmparo(tipo, paciente, geriatrico, extras)
+      const html = await generarAmparo(tipo, paciente, geriatrico, extras)
       const html2pdf = (await import("html2pdf.js")).default
       const container = document.createElement("div")
       container.innerHTML = html
@@ -320,7 +320,7 @@ export default function Amparos() {
         if (tipo === "presupuesto" && amparo.observaciones) extras = { item_presupuesto: amparo.observaciones }
         else if (esTipoFacturas(tipo) && amparo.observaciones) { try { const r = JSON.parse(amparo.observaciones); extras = { facturas: r.facturas || [], incluirFirma: r.incluirFirma } } catch {} }
         try {
-          const html = generarAmparo(tipo, paciente, geriatrico, extras)
+          const html = await generarAmparo(tipo, paciente, geriatrico, extras)
           const container = document.createElement("div")
           container.innerHTML = html
           const pdf = await html2pdf().set(PDF_OPTS).from(container).toPdf().get("pdf")
