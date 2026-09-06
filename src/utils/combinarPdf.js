@@ -61,13 +61,14 @@ async function agregarImagenArchivoComoPagina(mergedDoc, file) {
 // PDFs subidos por el usuario (ej: facturas de ARCA) pueden venir encriptados/protegidos.
 // pdf-lib no sabe desencriptar el contenido de esas paginas, asi que las renderizamos
 // con pdf.js (que si soporta PDFs protegidos) y las insertamos como imagen.
-async function rasterizarPdfYAgregar(mergedDoc, bytes) {
+async function rasterizarPdfYAgregar(mergedDoc, bytes, soloPrimeraPagina = false) {
   const pdfjsLib = await import("pdfjs-dist")
   const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default
   pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
   const pdf = await pdfjsLib.getDocument({ data: bytes }).promise
-  for (let i = 1; i <= pdf.numPages; i++) {
+  const totalPaginas = soloPrimeraPagina ? 1 : pdf.numPages
+  for (let i = 1; i <= totalPaginas; i++) {
     const page = await pdf.getPage(i)
     const viewport = page.getViewport({ scale: 2 })
     const canvas = document.createElement("canvas")
@@ -88,7 +89,8 @@ export async function generarPdfCombinado(entradas) {
   for (const entrada of entradas) {
     if (entrada.facturaFile) {
       const bytes = await entrada.facturaFile.arrayBuffer()
-      await rasterizarPdfYAgregar(mergedDoc, bytes)
+      // La factura de ARCA trae Original/Duplicado/Triplicado; solo nos interesa la primera pagina.
+      await rasterizarPdfYAgregar(mergedDoc, bytes, true)
     }
 
     if (entrada.constanciaTipo === "imagen" && entrada.constanciaFile) {
