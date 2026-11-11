@@ -102,6 +102,12 @@ export default function Amparos() {
   const togglePagado = (id, pagado) =>
     setFacturasDeuda(prev => prev.map(f => f.id === id ? { ...f, importeAbonado: pagado ? (f.importeTotal || "") : "" } : f))
 
+  // Recibo: marcar/desmarcar todos los meses; si ya había un abonado parcial lo respeta
+  const toggleTodosPagados = (pagado) =>
+    setFacturasDeuda(prev => prev.map(f => ({ ...f, importeAbonado: pagado ? (f.importeAbonado || f.importeTotal || "") : "" })))
+  const todosPagados = facturasDeuda.length > 0 && facturasDeuda.every(f => f.importeAbonado)
+  const algunoPagado = facturasDeuda.some(f => f.importeAbonado)
+
   // Carga en el formulario las facturas guardadas de un amparo (informe de deuda o recibo)
   const cargarFacturas = (observaciones, { conAbonado = true } = {}) => {
     try {
@@ -462,7 +468,20 @@ export default function Amparos() {
                       bg="bg.muted"
                     />
                   </FieldRoot>
-                  <Text fontSize="sm" fontWeight="500" mb={2}>Facturas</Text>
+                  <HStack justify="space-between" mb={2}>
+                    <Text fontSize="sm" fontWeight="500">Facturas</Text>
+                    {tipoSeleccionado === "recibo_pago" && (
+                      <CheckboxRoot
+                        size="sm"
+                        checked={todosPagados ? true : algunoPagado ? "indeterminate" : false}
+                        onCheckedChange={() => toggleTodosPagados(!todosPagados)}
+                      >
+                        <CheckboxHiddenInput />
+                        <CheckboxControl />
+                        <CheckboxLabel fontSize="sm">Marcar todo como pagado</CheckboxLabel>
+                      </CheckboxRoot>
+                    )}
+                  </HStack>
                   <Stack gap={2}>
                     {facturasConPeriodo.map((f) => (
                       <Box key={f.id} p={3} border="1px solid" borderColor="border.subtle" borderRadius="md" bg="bg.muted">
