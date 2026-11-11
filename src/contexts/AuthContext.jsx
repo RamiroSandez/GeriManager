@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useRef, useState } from "react"
 import { supabase } from "../services/supabase"
 import { logError } from "../utils/log"
 
@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
   const [geriatrico, setGeriatrico] = useState(null)
   const [rol, setRol] = useState(null)
   const [cargando, setCargando] = useState(true)
+  const userIdRef = useRef(null) // usuario con el que ya se cargó el geriátrico
   const fetchGeriatrico = async (userId) => {
     // Esperar sesión activa antes de consultar (evita SELECT sin token)
     const { data: { session } } = await supabase.auth.getSession()
@@ -42,30 +43,33 @@ export function AuthProvider({ children }) {
 
 
   useEffect(() => {
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          fetchGeriatrico(session.user.id)
-            .catch(() => {})
-            .finally(() => setCargando(false))
-        } else {
-          setCargando(false)
-        }
-      })
-      .catch(() => setCargando(false))
+    // onAuthStateChange emite INITIAL_SESSION al suscribirse, así que también cubre la carga inicial
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const nuevoId = session?.user?.id ?? null
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Al volver a la pestaña Supabase renueva el token y emite SIGNED_IN / TOKEN_REFRESHED
+      // para el mismo usuario. Recargar ahí ponía cargando=true, ProtectedRoute desmontaba
+      // la página y se perdía lo que el usuario estaba cargando.
+      if (event !== "INITIAL_SESSION" && nuevoId === userIdRef.current) {
+        if (event === "USER_UPDATED") setUser(session.user)
+        return
+      }
+
+      userIdRef.current = nuevoId
       setUser(session?.user ?? null)
-      if (session?.user) {
-        setCargando(true)
-        fetchGeriatrico(session.user.id)
-          .catch(() => {})
-          .finally(() => setCargando(false))
-      } else {
+      if (!nuevoId) {
         setGeriatrico(null)
         setRol(null)
+        setCargando(false)
+        return
       }
+      setCargando(true)
+      // Diferido: llamar a Supabase dentro de este callback puede bloquear el cliente de auth
+      setTimeout(() => {
+        fetchGeriatrico(nuevoId)
+          .catch(() => {})
+          .finally(() => setCargando(false))
+      }, 0)
     })
 
     return () => subscription.unsubscribe()
