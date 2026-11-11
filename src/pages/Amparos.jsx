@@ -97,6 +97,55 @@ export default function Amparos() {
 
   const setCampoFactura = (id, campo, val) =>
     setFacturasDeuda(prev => prev.map(f => f.id === id ? { ...f, [campo]: val } : f))
+
+  // Recibo: marcar un mes como pagado copia el importe total al abonado (editable después)
+  const togglePagado = (id, pagado) =>
+    setFacturasDeuda(prev => prev.map(f => f.id === id ? { ...f, importeAbonado: pagado ? (f.importeTotal || "") : "" } : f))
+
+  // Carga en el formulario las facturas guardadas de un amparo (informe de deuda o recibo)
+  const cargarFacturas = (observaciones, { conAbonado = true } = {}) => {
+    try {
+      const r = JSON.parse(observaciones || "{}")
+      const facturas = r.facturas || []
+      if (facturas.length === 0) return false
+      const [nombreMes, anio] = (facturas[0].periodo || "").split(" ")
+      const idxMes = MESES.indexOf(nombreMes)
+      if (idxMes >= 0 && anio) setMesInicioDeuda(`20${anio}-${String(idxMes + 1).padStart(2, "0")}`)
+      setFacturasDeuda(facturas.map(f => ({
+        id: crypto.randomUUID(),
+        factura: (f.factura || "").replace(/^B-00000/, ""),
+        importeTotal: f.importeTotal || "",
+        fechaPresentada: f.fechaPresentada || "",
+        importeAbonado: conAbonado ? (f.importeAbonado || "") : "",
+      })))
+      setIncluirFirmaDeuda(r.incluirFirma !== false)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  // Al elegir Recibo de Pago para un paciente, precarga los meses de su Informe de Deuda
+  const precargarDesdeInformeDeuda = (pid, tipo) => {
+    if (editandoId || tipo !== "recibo_pago" || !pid) return
+    const informe = amparos.find(a => a.paciente_id === Number(pid) && a.tipo === "informe_deuda")
+    if (informe && cargarFacturas(informe.observaciones, { conAbonado: false })) {
+      toaster.create({ title: "Meses cargados desde el Informe de Deuda", description: "Marcá los que fueron pagados.", type: "info", duration: 4000 })
+    } else {
+      setMesInicioDeuda(mesActualISO())
+      setFacturasDeuda([facturaVacia()])
+    }
+  }
+
+  const cambiarPaciente = (pid) => {
+    setPacienteId(pid)
+    precargarDesdeInformeDeuda(pid, tipoSeleccionado)
+  }
+
+  const cambiarTipo = (tipo) => {
+    setTipoSeleccionado(tipo)
+    precargarDesdeInformeDeuda(pacienteId, tipo)
+  }
   const agregarFactura = () => setFacturasDeuda(prev => [...prev, facturaVacia()])
   const quitarFactura = (id) => setFacturasDeuda(prev => prev.filter(f => f.id !== id))
 
@@ -136,28 +185,8 @@ export default function Amparos() {
       }
     }
 
-    if (esTipoFacturas(tipo)) {
-      try {
-        const r = JSON.parse(amparo.observaciones || "{}")
-        const facturas = r.facturas || []
-        if (facturas.length > 0) {
-          const [nombreMes, anio] = (facturas[0].periodo || "").split(" ")
-          const idxMes = MESES.indexOf(nombreMes)
-          if (idxMes >= 0 && anio) setMesInicioDeuda(`20${anio}-${String(idxMes + 1).padStart(2, "0")}`)
-          setFacturasDeuda(facturas.map(f => ({
-            id: crypto.randomUUID(),
-            factura: (f.factura || "").replace(/^B-00000/, ""),
-            importeTotal: f.importeTotal || "",
-            fechaPresentada: f.fechaPresentada || "",
-            importeAbonado: f.importeAbonado || "",
-          })))
-        } else {
-          setFacturasDeuda([facturaVacia()])
-        }
-        setIncluirFirmaDeuda(r.incluirFirma !== false)
-      } catch {
-        setFacturasDeuda([facturaVacia()])
-      }
+    if (esTipoFacturas(tipo) && !cargarFacturas(amparo.observaciones)) {
+      setFacturasDeuda([facturaVacia()])
     }
   }
 
@@ -202,6 +231,10 @@ export default function Amparos() {
     }
     if (esTipoFacturas(tipoSeleccionado) && !/^\d{4}-\d{2}$/.test(mesInicioDeuda)) {
       toaster.create({ title: "Seleccioná el mes de inicio", type: "warning", duration: 3000 })
+      return
+    }
+    if (tipoSeleccionado === "recibo_pago" && !facturasDeuda.some(f => f.importeAbonado)) {
+      toaster.create({ title: "Marcá al menos un mes como pagado", type: "warning", duration: 3000 })
       return
     }
     const faltantes = validarCamposAmparo(paciente)
@@ -395,7 +428,7 @@ export default function Amparos() {
                 <FieldRoot flex={1} minW="220px">
                   <FieldLabel fontSize="sm">Paciente</FieldLabel>
                   <NativeSelect.Root disabled={!!editandoId}>
-                    <NativeSelect.Field value={pacienteId} onChange={e => setPacienteId(e.target.value)} bg="bg.muted">
+                    <NativeSelect.Field value={pacienteId} onChange={e => cambiarPaciente(e.target.value)} bg="bg.muted">
                       <option value="">Seleccionar paciente...</option>
                       {pacientes.map(p => (
                         <option key={p.id} value={p.id}>{p.Nombre_Completo}</option>
@@ -407,7 +440,7 @@ export default function Amparos() {
                 <FieldRoot flex={1} minW="220px">
                   <FieldLabel fontSize="sm">Tipo de documento</FieldLabel>
                   <NativeSelect.Root disabled={!!editandoId}>
-                    <NativeSelect.Field value={tipoSeleccionado} onChange={e => setTipoSeleccionado(e.target.value)} bg="bg.muted">
+                    <NativeSelect.Field value={tipoSeleccionado} onChange={e => cambiarTipo(e.target.value)} bg="bg.muted">
                       <option value="">Seleccionar tipo...</option>
                       {tiposDisponibles.map(t => (
                         <option key={t.key} value={t.key}>{t.label}</option>
@@ -433,9 +466,22 @@ export default function Amparos() {
                   <Stack gap={2}>
                     {facturasConPeriodo.map((f) => (
                       <Box key={f.id} p={3} border="1px solid" borderColor="border.subtle" borderRadius="md" bg="bg.muted">
-                        <Text fontSize="xs" fontWeight="600" color="teal.600" mb={2} textTransform="capitalize">
-                          {f.periodo}
-                        </Text>
+                        <HStack justify="space-between" mb={2}>
+                          <Text fontSize="xs" fontWeight="600" color="teal.600" textTransform="capitalize">
+                            {f.periodo}
+                          </Text>
+                          {tipoSeleccionado === "recibo_pago" && (
+                            <CheckboxRoot
+                              size="sm"
+                              checked={!!f.importeAbonado}
+                              onCheckedChange={e => togglePagado(f.id, !!e.checked)}
+                            >
+                              <CheckboxHiddenInput />
+                              <CheckboxControl />
+                              <CheckboxLabel fontSize="xs">Pagado</CheckboxLabel>
+                            </CheckboxRoot>
+                          )}
+                        </HStack>
                         <Grid
                           templateColumns={{ base: "1fr", md: tipoSeleccionado === "recibo_pago" ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr" }}
                           gap={2}

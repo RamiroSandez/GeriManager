@@ -626,7 +626,8 @@ function templateInformeDeuda(p, geriatrico, fecha, extras) {
 }
 
 function templateReciboPago(p, geriatrico, fecha, extras) {
-  const facturas = extras.facturas || []
+  // Solo los meses pagados; los impagos se guardan igual para poder editar el recibo después
+  const facturas = (extras.facturas || []).filter(f => f.importeAbonado)
   const totalRecibido = facturas.reduce((acc, f) => acc + (parseInt(String(f.importeAbonado).replace(/\D/g, "")) || 0), 0)
 
   return documentoFacturas(p, { ...geriatrico, _facturas: facturas }, {
