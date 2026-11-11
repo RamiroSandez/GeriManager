@@ -7,6 +7,7 @@ import {
 } from "@chakra-ui/react"
 import { Toaster, toaster } from "../components/toaster"
 import { cargarDemoData, limpiarDemoData } from "../utils/demoData"
+import { saldoMes } from "../utils/cobranzas"
 
 function KpiCard({ valor, label, color, sub, icono, onClick }) {
   return (
@@ -63,8 +64,9 @@ function StepItem({ done, label, onClick }) {
 }
 
 export default function Panel() {
-  const { geriatrico } = useAuth()
+  const { geriatrico, rol } = useAuth()
   const navigate = useNavigate()
+  const veCobranzas = rol === "admin" || rol === "gerente"
   const [cargando, setCargando] = useState(true)
   const [cargandoDemo, setCargandoDemo] = useState(false)
   const [limpiandoDemo, setLimpiandoDemo] = useState(false)
@@ -74,7 +76,7 @@ export default function Panel() {
   const demoActivo = localStorage.getItem(`geri-demo-${geriatrico?.id}`) === "loaded"
   const [kpis, setKpis] = useState({
     totalPacientes: 0, activos: 0, bajas: 0,
-    gastosMes: 0, alertasSignos: 0, medPendientes: 0, cumpleHoy: [],
+    saldoCobranzas: 0, alertasSignos: 0, medPendientes: 0, cumpleHoy: [],
   })
 
   useEffect(() => {
@@ -95,16 +97,24 @@ export default function Panel() {
 
     const today = new Date().toISOString().split("T")[0]
     const hace7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
-    const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0]
     const todayMMDD = today.slice(5)
 
     const cumpleHoy = activosList.filter(p => p.fecha_nacimiento?.slice(5) === todayMMDD)
+
+    // Saldo adeudado por obras sociales (incluye pacientes dados de baja: la deuda sigue)
+    let saldoCobranzas = 0
+    if (veCobranzas) {
+      const { data: cobranzas } = await supabase.from("cobranzas_meses")
+        .select("importe, importe_cobrado")
+        .eq("geriatrico_id", geriatrico.id)
+      saldoCobranzas = (cobranzas ?? []).reduce((acc, m) => acc + saldoMes(m), 0)
+    }
 
     if (activoIds.length === 0) {
       setKpis({
         totalPacientes: todos.length, activos: activosList.length,
         bajas: todos.filter(p => p.estado === "baja").length,
-        gastosMes: 0, alertasSignos: 0, medPendientes: 0, cumpleHoy,
+        saldoCobranzas, alertasSignos: 0, medPendientes: 0, cumpleHoy,
       })
       setCargando(false)
       return
@@ -114,7 +124,6 @@ export default function Panel() {
       { data: signosData },
       { data: medHoy },
       { data: pacMeds },
-      { data: gastosData },
     ] = await Promise.all([
       supabase.from("registro_signos_vitales")
         .select("presion_maxima,presion_minima,temperatura,pulso,respiracion")
@@ -125,10 +134,6 @@ export default function Panel() {
       supabase.from("paciente_medicamentos")
         .select("paciente_id,medicamento_id")
         .in("paciente_id", activoIds),
-      supabase.from("gastos")
-        .select("monto")
-        .eq("geriatrico_id", geriatrico.id)
-        .gte("fecha", primerDiaMes),
     ])
 
     const alertasSignos = (signosData ?? []).filter(s =>
@@ -144,13 +149,11 @@ export default function Panel() {
       if (!registrados.has(`${pm.paciente_id}-${pm.medicamento_id}`)) pendientes.add(pm.paciente_id)
     }
 
-    const gastosMes = (gastosData ?? []).reduce((acc, g) => acc + Number(g.monto), 0)
-
     setKpis({
       totalPacientes: todos.length,
       activos: activosList.length,
       bajas: todos.filter(p => p.estado === "baja").length,
-      gastosMes, alertasSignos, medPendientes: pendientes.size, cumpleHoy,
+      saldoCobranzas, alertasSignos, medPendientes: pendientes.size, cumpleHoy,
     })
     setCargando(false)
   }
@@ -167,7 +170,7 @@ export default function Panel() {
     if (error) {
       toaster.create({ title: "Error al cargar demo", description: error.message, type: "error", duration: 4000 })
     } else {
-      toaster.create({ title: "Datos de demo cargados", description: "8 pacientes, medicamentos y gastos de ejemplo", type: "success", duration: 3000 })
+      toaster.create({ title: "Datos de demo cargados", description: "8 pacientes, medicamentos y signos vitales de ejemplo", type: "success", duration: 3000 })
       fetchData()
     }
   }
@@ -186,7 +189,6 @@ export default function Panel() {
 
   const hora = new Date().getHours()
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches"
-  const mes = new Date().toLocaleString("es-AR", { month: "long", year: "numeric" })
   const ocupacion = geriatrico?.capacidad
     ? Math.round((kpis.activos / geriatrico.capacidad) * 100)
     : null
@@ -240,7 +242,6 @@ export default function Panel() {
               <StepItem done label="Crear tu geriátrico" />
               <StepItem done={kpis.totalPacientes > 0} label="Agregar tu primer paciente" onClick={() => navigate("/pacientes")} />
               <StepItem done={false} label="Asignar medicación a un paciente" onClick={() => navigate("/medicamentos")} />
-              <StepItem done={kpis.gastosMes > 0} label="Registrar un gasto" onClick={() => navigate("/gastos")} />
               <StepItem done={false} label="Invitar a tu equipo" onClick={() => navigate("/equipo")} />
             </Stack>
 
@@ -296,14 +297,16 @@ export default function Panel() {
           icono="💊"
           onClick={() => navigate("/pacientes")}
         />
-        <KpiCard
-          valor={formatPesos(kpis.gastosMes)}
-          label="Gastos del mes"
-          color="teal.600"
-          sub={mes}
-          icono="💰"
-          onClick={() => navigate("/gastos")}
-        />
+        {veCobranzas && (
+          <KpiCard
+            valor={formatPesos(kpis.saldoCobranzas)}
+            label="Saldo a cobrar"
+            color={kpis.saldoCobranzas > 0 ? "red.500" : "teal.600"}
+            sub="Adeudado por obras sociales"
+            icono="💰"
+            onClick={() => navigate("/cobranzas")}
+          />
+        )}
       </Grid>
 
       {/* Fila inferior: stats + cumpleaños + acciones rápidas */}
@@ -363,9 +366,11 @@ export default function Panel() {
               <Button size="sm" variant="outline" colorPalette="teal" onClick={() => navigate("/amparos")}>
                 Generar amparo
               </Button>
-              <Button size="sm" variant="outline" colorPalette="teal" onClick={() => navigate("/gastos")}>
-                Registrar gasto
-              </Button>
+              {veCobranzas && (
+                <Button size="sm" variant="outline" colorPalette="teal" onClick={() => navigate("/cobranzas")}>
+                  Ver cobranzas
+                </Button>
+              )}
             </Stack>
           </Card.Body>
         </Card.Root>

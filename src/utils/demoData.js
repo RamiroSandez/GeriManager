@@ -3,15 +3,6 @@ import { supabase } from "../services/supabase"
 const diasAtras = (n) =>
   new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
 
-const fechaMes = (mes, dia) => {
-  const now = new Date()
-  const año = mes === "anterior" && now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
-  const m = mes === "anterior"
-    ? (now.getMonth() === 0 ? 12 : now.getMonth())
-    : now.getMonth() + 1
-  return `${año}-${String(m).padStart(2, "0")}-${String(dia).padStart(2, "0")}`
-}
-
 const PACIENTES = [
   {
     Nombre_Completo: "María Luisa García", dni: "5423891", Obra_social: "PAMI",
@@ -87,18 +78,6 @@ const MEDICAMENTOS = [
   { nombre: "Losartán", presentacion: "Comprimidos 50mg", dosis_estandar: "1 comprimido por la mañana" },
 ]
 
-const GASTOS = [
-  { categoria: "medicamentos", descripcion: "Compra mensual de medicamentos", monto: 850000, proveedor: "Farmacia del Centro", fecha: fechaMes("actual", 2) },
-  { categoria: "alimentacion", descripcion: "Compras supermercado semanal", monto: 420000, proveedor: "Carrefour", fecha: fechaMes("actual", 5) },
-  { categoria: "higiene", descripcion: "Pañales y artículos de higiene personal", monto: 280000, proveedor: "Distribuidora Salud", fecha: fechaMes("actual", 8) },
-  { categoria: "personal", descripcion: "Sueldo enfermera turno noche", monto: 1200000, proveedor: null, fecha: fechaMes("actual", 10) },
-  { categoria: "medicamentos", descripcion: "Compra mensual de medicamentos", monto: 780000, proveedor: "Farmacia del Centro", fecha: fechaMes("anterior", 3) },
-  { categoria: "alimentacion", descripcion: "Compras supermercado semanal", monto: 380000, proveedor: "Carrefour", fecha: fechaMes("anterior", 10) },
-  { categoria: "mantenimiento", descripcion: "Reparación sistema de calefacción", monto: 350000, proveedor: "Técnico Martínez", fecha: fechaMes("anterior", 15) },
-  { categoria: "personal", descripcion: "Sueldo enfermera turno noche", monto: 1150000, proveedor: null, fecha: fechaMes("anterior", 20) },
-  { categoria: "higiene", descripcion: "Pañales y artículos de higiene personal", monto: 250000, proveedor: "Distribuidora Salud", fecha: fechaMes("anterior", 28) },
-]
-
 // Signos vitales para los últimos 7 días — algunos fuera de rango para mostrar alertas
 function generarSignos(pacienteIdx) {
   const registros = []
@@ -165,12 +144,6 @@ export async function cargarDemoData(geriatricoId) {
   const { error: errSignos } = await supabase.from("registro_signos_vitales").insert(signosInsert)
   if (errSignos) return { error: errSignos }
 
-  // 5. Gastos
-  const { error: errGastos } = await supabase
-    .from("gastos")
-    .insert(GASTOS.map(g => ({ ...g, geriatrico_id: geriatricoId })))
-  if (errGastos) return { error: errGastos }
-
   localStorage.setItem(`geri-demo-${geriatricoId}`, "loaded")
   return { error: null }
 }
@@ -197,6 +170,7 @@ export async function limpiarDemoData(geriatricoId) {
 
   await Promise.all([
     supabase.from("medicamentos").delete().eq("geriatrico_id", geriatricoId),
+    // Gastos ya no tiene pantalla; se limpia lo que haya quedado de demos anteriores
     supabase.from("gastos").delete().eq("geriatrico_id", geriatricoId),
   ])
 

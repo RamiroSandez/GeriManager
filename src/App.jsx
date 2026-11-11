@@ -6,7 +6,8 @@ import ProtectedRoute from "./components/ProtectedRoute"
 import Panel from "./pages/Panel"
 import Pacientes from "./pages/Pacientes"
 import FichaPaciente from "./pages/FichaPaciente"
-import Gastos from "./pages/Gastos"
+import Cobranzas from "./pages/Cobranzas"
+import CuentaCobranza from "./pages/CuentaCobranza"
 import Login from "./pages/Login"
 import Registro from "./pages/Registro"
 import Equipo from "./pages/Equipo"
@@ -38,7 +39,8 @@ function App() {
                     <Route path="/" element={<Panel />} />
                     <Route path="/pacientes" element={<Pacientes />} />
                     <Route path="/paciente/:id" element={<FichaPaciente />} />
-                    <Route path="/gastos" element={<RolRoute roles={["admin", "gerente"]}><Gastos /></RolRoute>} />
+                    <Route path="/cobranzas" element={<RolRoute roles={["admin", "gerente"]}><Cobranzas /></RolRoute>} />
+                    <Route path="/cobranzas/:pacienteId" element={<RolRoute roles={["admin", "gerente"]}><CuentaCobranza /></RolRoute>} />
                     <Route path="/amparos" element={<Amparos />} />
                     <Route path="/presentaciones" element={<Presentaciones />} />
                     <Route path="/equipo" element={<RolRoute roles={["admin"]}><Equipo /></RolRoute>} />
