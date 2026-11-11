@@ -71,9 +71,9 @@ export const honorariosMes = (mes) => (n(mes.importe_cobrado) * n(mes.porcentaje
 
 export const honorariosPendientesMes = (mes) => (mes.honorarios_abonados_el ? 0 : honorariosMes(mes))
 
-// Totales de una cuenta; el honorario inicial suma a pendientes mientras no tenga fecha de pago
-export function totalesCuenta(meses, cuenta = {}) {
-  const t = meses.reduce((acc, m) => {
+// Totales de una cuenta a partir de sus meses
+export function totalesCuenta(meses) {
+  return meses.reduce((acc, m) => {
     acc.facturado += n(m.importe)
     acc.cobrado += n(m.importe_cobrado)
     acc.saldo += saldoMes(m)
@@ -83,7 +83,4 @@ export function totalesCuenta(meses, cuenta = {}) {
     if (m.fecha_cobro && (!acc.ultimoCobro || m.fecha_cobro > acc.ultimoCobro)) acc.ultimoCobro = m.fecha_cobro
     return acc
   }, { facturado: 0, cobrado: 0, saldo: 0, mesesConSaldo: 0, honorarios: 0, honorariosPendientes: 0, ultimoCobro: null })
-
-  if (cuenta.honorario_inicial && !cuenta.honorario_inicial_abonado_el) t.honorariosPendientes += n(cuenta.honorario_inicial)
-  return t
 }

@@ -204,7 +204,7 @@ export default function Cobranzas() {
       cuenta: c,
       nombre: c.Pacientes?.Nombre_Completo || "Paciente",
       activo: !c.Pacientes?.estado || c.Pacientes.estado === "activo",
-      t: totalesCuenta(meses.filter(m => m.paciente_id === c.paciente_id), c),
+      t: totalesCuenta(meses.filter(m => m.paciente_id === c.paciente_id)),
     }))
     .sort((a, b) => (b.activo - a.activo) || b.t.saldo - a.t.saldo)
 

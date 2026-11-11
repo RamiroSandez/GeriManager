@@ -94,8 +94,6 @@ export default function CuentaCobranza() {
     setConfig(c ? {
       cobertura: c.cobertura || "",
       porcentaje: String(c.porcentaje_honorarios ?? 8),
-      honorarioInicial: montoATexto(c.honorario_inicial),
-      honorarioInicialAbonado: c.honorario_inicial_abonado_el || "",
       observaciones: c.observaciones || "",
     } : null)
     setMeses(m || [])
@@ -201,8 +199,6 @@ export default function CuentaCobranza() {
     const cambios = {
       cobertura: config.cobertura.trim() || null,
       porcentaje_honorarios: porcentaje,
-      honorario_inicial: parseMonto(config.honorarioInicial),
-      honorario_inicial_abonado_el: config.honorarioInicialAbonado || null,
       observaciones: config.observaciones.trim() || null,
     }
     const { error } = await supabase.from("cobranzas_cuentas").update(cambios).eq("id", cuenta.id)
@@ -233,7 +229,7 @@ export default function CuentaCobranza() {
     )
   }
 
-  const t = totalesCuenta(meses, cuenta)
+  const t = totalesCuenta(meses)
   const visibles = meses.filter(m => filtro === "todos" || (filtro === "saldo" ? saldoMes(m) > 0 : aRevisar(m)))
   const cantRevisar = meses.filter(aRevisar).length
   const todosSeleccionados = visibles.length > 0 && visibles.every(m => seleccion.has(m.id))
@@ -265,7 +261,7 @@ export default function CuentaCobranza() {
       {/* Configuración */}
       <Card.Root borderRadius="xl" boxShadow="sm" mb={5}>
         <Card.Body>
-          <Grid templateColumns={{ base: "1fr", md: "2fr 0.7fr 1fr 1fr" }} gap={3} alignItems="end">
+          <Grid templateColumns={{ base: "1fr", md: "2fr 1fr" }} gap={3} alignItems="end">
             <FieldRoot>
               <FieldLabel fontSize="xs">Cobertura</FieldLabel>
               <Input size="sm" bg="bg.muted" value={config.cobertura} onChange={e => setConfig(c => ({ ...c, cobertura: e.target.value }))} />
@@ -275,14 +271,6 @@ export default function CuentaCobranza() {
               <Input size="sm" bg="bg.muted" inputMode="decimal" value={config.porcentaje} onChange={e => setConfig(c => ({ ...c, porcentaje: e.target.value.replace(/[^\d.]/g, "") }))} />
             </FieldRoot>
             <FieldRoot>
-              <FieldLabel fontSize="xs">Honorario inicial (mes y medio)</FieldLabel>
-              <Input size="sm" bg="bg.muted" inputMode="decimal" placeholder="$" value={config.honorarioInicial} onChange={e => setConfig(c => ({ ...c, honorarioInicial: e.target.value }))} />
-            </FieldRoot>
-            <FieldRoot>
-              <FieldLabel fontSize="xs">Honorario inicial abonado el</FieldLabel>
-              <Input size="sm" bg="bg.muted" type="date" value={config.honorarioInicialAbonado} onChange={e => setConfig(c => ({ ...c, honorarioInicialAbonado: e.target.value }))} />
-            </FieldRoot>
-            <FieldRoot gridColumn={{ md: "span 3" }}>
               <FieldLabel fontSize="xs">Observaciones de la cuenta</FieldLabel>
               <Input size="sm" bg="bg.muted" value={config.observaciones} onChange={e => setConfig(c => ({ ...c, observaciones: e.target.value }))} />
             </FieldRoot>

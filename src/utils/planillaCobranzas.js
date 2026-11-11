@@ -124,7 +124,7 @@ function detectarColumnas(grilla) {
     const etiquetas = {}
     let porcentajeEncabezado = null
     grilla[r].forEach((c, col) => {
-      etiquetas[col] = c ? textoCelda(c) : `Col ${nombreColumna(col)}`
+      etiquetas[col] = c ? textoCelda(c).replace(/:\s*$/, "") : `Col ${nombreColumna(col)}`
       // Encabezado numérico tipo 0,05: es la columna de honorarios y su porcentaje
       if (c?.tipo === "num" && c.v > 0 && c.v < 1) {
         if (roles.honorarios === undefined) roles.honorarios = col
@@ -143,7 +143,7 @@ function detectarColumnas(grilla) {
 function importarHoja(nombreHoja, grilla, porcentajeDefecto) {
   const { filaEncabezado, roles, etiquetas, porcentajeEncabezado } = detectarColumnas(grilla)
   const usadas = new Set() // "fila:col" ya interpretadas como datos de la cuenta
-  const cuenta = { cobertura: null, honorario_inicial: null, honorario_inicial_abonado_el: null, observaciones: [] }
+  const cuenta = { cobertura: null, observaciones: [] }
   const avisos = []
   const rolDeColumna = Object.fromEntries(Object.entries(roles).map(([rol, col]) => [col, rol]))
 
@@ -153,18 +153,8 @@ function importarHoja(nombreHoja, grilla, porcentajeDefecto) {
     const t = norm(c.v)
     if (/^cobertura/.test(t)) {
       usadas.add(`${r}:${col}`) // etiqueta suelta tipo "cobertura máxima"
-    } else if (/mes y medio|^inicial/.test(t)) {
-      // "Mes y medio inicial" seguido del importe y la fecha en la misma fila
-      usadas.add(`${r}:${col}`)
-      for (let k = col + 1; k < fila.length; k++) {
-        const v = fila[k]
-        if (!v) continue
-        if (v.tipo === "num" && cuenta.honorario_inicial === null) { cuenta.honorario_inicial = v.v; usadas.add(`${r}:${k}`) }
-        else if (v.tipo === "fecha" && !cuenta.honorario_inicial_abonado_el) { cuenta.honorario_inicial_abonado_el = leerFecha(v); usadas.add(`${r}:${k}`) }
-        else if (v.tipo === "texto" && /abonad|pagad/.test(norm(v.v))) { cuenta.observaciones.push(`Honorario inicial: ${v.v}`); usadas.add(`${r}:${k}`) }
-      }
-      if (cuenta.honorario_inicial === null) avisos.push("Honorario inicial mencionado sin importe")
-    } else if (!cuenta.cobertura && (col === roles.cobertura || /hogar|categor/.test(t))) {
+    } else if (!cuenta.cobertura && !/mes y medio|inicial/.test(t) && (col === roles.cobertura || /hogar|categor/.test(t))) {
+      // Las notas de "mes y medio inicial" no son cobertura: quedan en observaciones del mes
       cuenta.cobertura = c.v
       usadas.add(`${r}:${col}`)
     }
@@ -400,18 +390,12 @@ function hojaPaciente(XLSX, cuenta, meses) {
       celdaFecha(m.honorarios_abonados_el),
       m.observaciones,
     ]
-    // Datos de la cuenta a la derecha, como en la planilla original (se reimportan igual)
+    // Cobertura a la derecha, como en la planilla original (se reimporta igual)
     if (i === 0) fila.push(null, cuenta.cobertura)
-    if (i === 1 && cuenta.honorario_inicial) {
-      fila.push(null, "Mes y medio inicial", celdaMonto(cuenta.honorario_inicial), celdaFecha(cuenta.honorario_inicial_abonado_el))
-    }
     filas.push(fila)
   })
-  if (meses.length < 2 && cuenta.honorario_inicial) {
-    filas.push([...Array(ENCABEZADOS.length + 1).fill(null), "Mes y medio inicial", celdaMonto(cuenta.honorario_inicial), celdaFecha(cuenta.honorario_inicial_abonado_el)])
-  }
   const ws = XLSX.utils.aoa_to_sheet(filas)
-  ws["!cols"] = [10, 12, 13, 14, 10, 12, 13, 13, 5, 12, 12, 40, 2, 40, 14, 12].map(wch => ({ wch }))
+  ws["!cols"] = [10, 12, 13, 14, 10, 12, 13, 13, 5, 12, 12, 40, 2, 40].map(wch => ({ wch }))
   return ws
 }
 
